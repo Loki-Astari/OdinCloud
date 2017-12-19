@@ -36,12 +36,11 @@ done
 
 dateTime=${ARGS[3]-$(date -u +"%Y%m%dT%H%M%SZ")}
 
+crheaders=()
 if [[ ${PARAM[headers]} ]]; then
     file=${PARAM[headers]}
     IFS=$'\n' read -d '' -r -a headers < ${file}
-
-    crheaders=()
-    prev=""
+    prev="host"
     headerExtra=""
     headerList=""
     for loop in "${headers[@]}"; do
