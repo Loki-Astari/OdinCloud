@@ -114,10 +114,10 @@ signature=$(echo -n "${ss}"    | openssl dgst -sha256 -hmac "${kSign}")
 
 #
 # Dump intermediate values to compare against language specific implementation.
-kDateH=$(echo -n ${date}        | openssl dgst -sha256 -hmac "AWS4${secret}")
-kRegnH=$(echo -n ${region}      | openssl dgst -sha256 -hmac "${kDate}")
-kServH=$(echo -n ${service}     | openssl dgst -sha256 -hmac "${kRegn}")
-kSignH=$(echo -n "aws4_request" | openssl dgst -sha256 -hmac "${kServ}")
+kDateH=$(openssl dgst -sha256 -hmac "AWS4${secret}" <<< "${date}")
+kRegnH=$(openssl dgst -sha256 -hmac "${kDate}" <<< "${region}")
+kServH=$(openssl dgst -sha256 -hmac "${kRegn}" <<< "${service}")
+kSignH=$(openssl dgst -sha256 -hmac "${kServ}" <<< "aws4_request")
 
 cat - <<IntermediateValues
 Intermediate Values
