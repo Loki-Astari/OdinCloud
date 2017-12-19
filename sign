@@ -3,11 +3,10 @@
 url=$1
 key=$2
 secret=$3
-dateTime=${4-$(date -u +"%Y%m%dT%H%M%SZ")}
 
-if [[ $# < 3  || $# > 4 ]]; then
+if [[ $# < 3  || $# > 6 ]]; then
     echo "Usage:"
-    echo "    sign <url> <key> <secret> [<TimeStamp>]"
+    echo "    sign <url> <key> <secret> [<TimeStamp>] [--headers <fileName>]"
     echo
     echo "Note 1: TimeStamp: must be YYYYMMDD'T'hhmmsa'Z's"
     echo "        eg 20170901T230559Z"
@@ -15,6 +14,49 @@ if [[ $# < 3  || $# > 4 ]]; then
     echo
     echo "Note 2: Currently does not support URL with Query or Fragment sections."
     exit 1
+fi
+
+declare -a ARGS
+declare -a PARAM
+declare -a PMAP
+index=""
+for var in "$@"; do
+    if [[ "${index}" != "" ]]; then
+        PMAP[$index]=${#PARAM[@]}
+        PARAM[${#PARAM[@]}]=$var
+        index=""
+        continue
+    fi
+    if [[ "$var" = '--headers' ]]; then
+        index=headers
+        continue
+    fi
+    ARGS[${#ARGS[@]}]="$var"
+done
+
+dateTime=${ARGS[3]-$(date -u +"%Y%m%dT%H%M%SZ")}
+
+if [[ ${PARAM[headers]} ]]; then
+    file=${PARAM[headers]}
+    IFS=$'\n' read -d '' -r -a headers < ${file}
+
+    crheaders=()
+    prev=""
+    headerExtra=""
+    headerList=""
+    for loop in "${headers[@]}"; do
+        name=$(tr '[A-Z]' '[a-z]' <<< "${loop%:*}")
+        crheaders+=("${name}:${loop#*:}")
+        headerExtra+="%3B${name}"
+        headerList+=";${name}"
+
+        if [[ "${name}" < "${prev}" ]]; then
+            echo "Headers Not in Lexographical Order"
+            echo "$name < ${prev}"
+            exit 1
+        fi
+        prev=${name}
+    done
 fi
 
 #
@@ -32,17 +74,20 @@ serviceRegion=${host%%\.*}
 service=${serviceRegion%%-*}
 region=${serviceRegion#*-}
 path=/${url#https://*/}
+file=${path##*/}
 expires=3600
 
 #
 # Build the canonical request
-cr=$(cat - <<CanonicalRequest
+IFS=$'\n'
+cr=$((cat - | uniq) <<CanonicalRequest
 GET
 ${path}
-X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=${key}%2F${date}%2F${region}%2F${service}%2Faws4_request&X-Amz-Date=${dateTime}&X-Amz-Expires=${expires}&X-Amz-SignedHeaders=host
+X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=${key}%2F${date}%2F${region}%2F${service}%2Faws4_request&X-Amz-Date=${dateTime}&X-Amz-Expires=${expires}&X-Amz-SignedHeaders=host${headerExtra}
 host:${host}
+${crheaders[*]}
 
-host
+host${headerList}
 UNSIGNED-PAYLOAD
 CanonicalRequest)
 
@@ -105,6 +150,17 @@ ${ss}
 
 Signed URL:
 ===========
-${url}?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=${key}%2F${date}%2F${region}%2F${service}%2Faws4_request&X-Amz-Date=${dateTime}&X-Amz-Expires=${expires}&X-Amz-SignedHeaders=host&X-Amz-Signature=${signature}
+${url}?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=${key}%2F${date}%2F${region}%2F${service}%2Faws4_request&X-Amz-Date=${dateTime}&X-Amz-Expires=${expires}&X-Amz-SignedHeaders=host${headerList}&X-Amz-Signature=${signature}
+
+
+CURL COMMAND:
+=============
 IntermediateValues
+
+echo -n "curl -o ${file} "
+for loop in "${headers[@]}"; do
+    echo -n "--header \"${loop}\" "
+done
+
+echo "\"${url}?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=${key}%2F${date}%2F${region}%2F${service}%2Faws4_request&X-Amz-Date=${dateTime}&X-Amz-Expires=${expires}&X-Amz-SignedHeaders=host${headerList}&X-Amz-Signature=${signature}\""
 
