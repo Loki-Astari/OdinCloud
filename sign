@@ -1,12 +1,53 @@
 #!/usr/bin/env bash
 
-url=$1
-key=$2
-secret=$3
+declare -a ARGS
+declare -a headers
+declare -a querys
+expires=3600
+signHeaders=0
+for var in "$@"; do
+    if [[ "${var%=*}" = '--headers' ]]; then
+        file=${var#*=}
+        while IFS= read -r line; do
+            headers+=("$line")
+        done < ${file}
+        continue
+    fi
+    if [[ "${var%=*}" = '--header' ]]; then
+        keyValue=${var#*=}
+        headers+=(${keyValue})
+        continue
+    fi
+    if [[ "${var%=*}" = '--querys' ]]; then
+        file=${var#*=}
+        while IFS= read -r keyValue; do
+            key=${keyValue%:*}
+            val=${keyValue#*:}
+            querys+=("${key}=${val}")
+        done < ${file}
+        continue
+    fi
+    if [[ "${var%=*}" = '--query' ]]; then
+        keyValue=${var#*=}
+        key=${keyValue%:*}
+        val=${keyValue#*:}
+        querys+=("${key}=${val}")
+        continue
+    fi
+    if [[ "${var}" = '--signHeaders' ]]; then
+        signHeaders=1
+        continue
+    fi
+    if [[ "${var}" = '--expires' ]]; then
+        expires=${var#*=}
+        continue
+    fi
+    ARGS+=("$var")
+done
 
-if [[ $# < 3  || $# > 6 ]]; then
+if [[ ${#ARGS[@]} < 3  || ${#ARGS[@]} > 4 ]]; then
     echo "Usage:"
-    echo "    sign <url> <key> <secret> [<TimeStamp>] [--headers <fileName>]"
+    echo "    sign <url> <key> <secret> [<TimeStamp>] [--headers=<fileName>] [--header=<Key>:<Value>] [--querys=<fileName>] [--query=<Key>:<Value>] [--signHeaders] [--expires=<TimeInSecs>] "
     echo
     echo "Note 1: TimeStamp: must be YYYYMMDD'T'hhmmsa'Z's"
     echo "        eg 20170901T230559Z"
@@ -16,47 +57,11 @@ if [[ $# < 3  || $# > 6 ]]; then
     exit 1
 fi
 
-declare -a ARGS
-declare -a PARAM
-declare -a PMAP
-index=""
-for var in "$@"; do
-    if [[ "${index}" != "" ]]; then
-        PMAP[$index]=${#PARAM[@]}
-        PARAM[${#PARAM[@]}]=$var
-        index=""
-        continue
-    fi
-    if [[ "$var" = '--headers' ]]; then
-        index=headers
-        continue
-    fi
-    ARGS[${#ARGS[@]}]="$var"
-done
 
+url=${ARGS[0]}
+key=${ARGS[1]}
+secret=${ARGS[2]}
 dateTime=${ARGS[3]-$(date -u +"%Y%m%dT%H%M%SZ")}
-
-crheaders=()
-if [[ ${PARAM[headers]} ]]; then
-    file=${PARAM[headers]}
-    IFS=$'\n' read -d '' -r -a headers < ${file}
-    prev="host"
-    headerExtra=""
-    headerList=""
-    for loop in "${headers[@]}"; do
-        name=$(tr '[A-Z]' '[a-z]' <<< "${loop%:*}")
-        crheaders+=("${name}:${loop#*:}")
-        headerExtra+="%3B${name}"
-        headerList+=";${name}"
-
-        if [[ "${name}" < "${prev}" ]]; then
-            echo "Headers Not in Lexographical Order"
-            echo "$name < ${prev}"
-            exit 1
-        fi
-        prev=${name}
-    done
-fi
 
 #
 # The First part of <dateTime> before the T
@@ -74,7 +79,43 @@ service=${serviceRegion%%-*}
 region=${serviceRegion#*-}
 path=/${url#https://*/}
 file=${path##*/}
-expires=3600
+
+
+headers+=("Host:${host}")
+if [[ "${signHeaders}" == "1" ]]; then
+    headers+=("X-Amz-Date:${dateTime}")
+    headers+=("X-Amz-Content-SHA256:UNSIGNED-PAYLOAD")
+fi
+
+crheaders=()
+headerExtra=""
+headerList=""
+for loop in "${headers[@]}"; do
+    name=$(tr '[A-Z]' '[a-z]' <<< "${loop%:*}")
+    crheaders+=("${name}:${loop#*:}")
+done
+IFS=$'\n' sortedHeaders=($(sort <<<"${crheaders[*]}"))
+for loop in "${sortedHeaders[@]}"; do
+    name=${loop%:*}
+    headerExtra+="%3B${name}"
+    headerList+=";${name}"
+done
+
+if [[ "${signHeaders}" == "0" ]]; then
+    querys+=("X-Amz-Algorithm=AWS4-HMAC-SHA256")
+    querys+=("X-Amz-Credential=${key}%2F${date}%2F${region}%2F${service}%2Faws4_request")
+    querys+=("X-Amz-Date=${dateTime}")
+    querys+=("X-Amz-Expires=${expires}")
+    querys+=("X-Amz-SignedHeaders=${headerExtra#%3B}")
+fi
+
+IFS=$'\n' sortedQuerys=($(sort <<<"${querys[*]}"))
+queryParam=""
+querySep='?'
+for loop in "${sortedQuerys[@]}"; do
+    queryParam+="${querySep}${loop}"
+    querySep='&'
+done
 
 #
 # Build the canonical request
@@ -82,11 +123,11 @@ IFS=$'\n'
 cr=$((cat - | uniq) <<CanonicalRequest
 GET
 ${path}
-X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=${key}%2F${date}%2F${region}%2F${service}%2Faws4_request&X-Amz-Date=${dateTime}&X-Amz-Expires=${expires}&X-Amz-SignedHeaders=host${headerExtra}
+X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=${key}%2F${date}%2F${region}%2F${service}%2Faws4_request&X-Amz-Date=${dateTime}&X-Amz-Expires=${expires}&X-Amz-SignedHeaders=${headerExtra:3}
 host:${host}
 ${crheaders[*]}
 
-host${headerList}
+${headerList:1}
 UNSIGNED-PAYLOAD
 CanonicalRequest)
 
@@ -149,7 +190,7 @@ ${ss}
 
 Signed URL:
 ===========
-${url}?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=${key}%2F${date}%2F${region}%2F${service}%2Faws4_request&X-Amz-Date=${dateTime}&X-Amz-Expires=${expires}&X-Amz-SignedHeaders=host${headerList}&X-Amz-Signature=${signature}
+${url}?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=${key}%2F${date}%2F${region}%2F${service}%2Faws4_request&X-Amz-Date=${dateTime}&X-Amz-Expires=${expires}&X-Amz-SignedHeaders=${headerList:1}&X-Amz-Signature=${signature}
 
 
 CURL COMMAND:
@@ -161,5 +202,5 @@ for loop in "${headers[@]}"; do
     echo -n "--header \"${loop}\" "
 done
 
-echo "\"${url}?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=${key}%2F${date}%2F${region}%2F${service}%2Faws4_request&X-Amz-Date=${dateTime}&X-Amz-Expires=${expires}&X-Amz-SignedHeaders=host${headerList}&X-Amz-Signature=${signature}\""
+echo "\"${url}?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=${key}%2F${date}%2F${region}%2F${service}%2Faws4_request&X-Amz-Date=${dateTime}&X-Amz-Expires=${expires}&X-Amz-SignedHeaders=${headerList:1}&X-Amz-Signature=${signature}\""
 
