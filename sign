@@ -120,16 +120,16 @@ done
 #
 # Build the canonical request
 IFS=$'\n'
-cr=$((cat - | uniq) <<CanonicalRequest
+cr=$(uniq <<CanonicalRequest
 GET
 ${path}
-X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=${key}%2F${date}%2F${region}%2F${service}%2Faws4_request&X-Amz-Date=${dateTime}&X-Amz-Expires=${expires}&X-Amz-SignedHeaders=${headerExtra:3}
-host:${host}
-${crheaders[*]}
+${queryParam#?}
+${sortedHeaders[*]}
 
-${headerList:1}
+${headerList#;}
 UNSIGNED-PAYLOAD
-CanonicalRequest)
+CanonicalRequest
+)
 
 #
 # Hash the canonical request
@@ -142,7 +142,8 @@ AWS4-HMAC-SHA256
 ${dateTime}
 ${date}/${region}/${service}/aws4_request
 ${HashedCanonicalRequest}
-StringToSign)
+StringToSign
+)
 
 #
 # Calculate the signature
@@ -190,17 +191,32 @@ ${ss}
 
 Signed URL:
 ===========
-${url}?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=${key}%2F${date}%2F${region}%2F${service}%2Faws4_request&X-Amz-Date=${dateTime}&X-Amz-Expires=${expires}&X-Amz-SignedHeaders=${headerList:1}&X-Amz-Signature=${signature}
+${url}${queryParam}${querySep}X-Amz-Signature=${signature}
 
-
-CURL COMMAND:
-=============
+Headers:
+========
 IntermediateValues
+
+printf "%s\n" ${headers[@]}
+if [[ "${signHeaders}" == "1" ]]; then
+    echo "Authorization: AWS4-HMAC-SHA256 Credential=${key}/${date}/${region}/${service}/aws4_request, SignedHeaders=${headerList#;}, Signature=${signature}"
+fi
+echo
+echo
+
+echo "CURL COMMAND:"
+echo "============="
 
 echo -n "curl -o ${file} "
 for loop in "${headers[@]}"; do
-    echo -n "--header \"${loop}\" "
+    if [[ ${loop%:*} != "Host" ]]; then
+        echo -n "--header \"${loop}\" "
+    fi
 done
+if [[ "${signHeaders}" == "1" ]]; then
+    echo "--header \"Authorization: AWS4-HMAC-SHA256 Credential=${key}/${date}/${region}/${service}/aws4_request, SignedHeaders=${headerList#;}, Signature=${signature}\" \"${url}${queryParam}\""
+else
+    echo "\"${url}${queryParam}${querySep}X-Amz-Signature=${signature}\""
+fi
 
-echo "\"${url}?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=${key}%2F${date}%2F${region}%2F${service}%2Faws4_request&X-Amz-Date=${dateTime}&X-Amz-Expires=${expires}&X-Amz-SignedHeaders=${headerList:1}&X-Amz-Signature=${signature}\""
 
