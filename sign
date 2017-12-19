@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 url=$1
 key=$2
@@ -9,9 +9,9 @@ if [[ $# < 3  || $# > 4 ]]; then
     echo "Usage:"
     echo "    sign <url> <key> <secret> [<TimeStamp>]"
     echo
-    echo "Note 1: TimeStamp: must be YYMMDD'T'hhmmsa'Z's"
+    echo "Note 1: TimeStamp: must be YYYYMMDD'T'hhmmsa'Z's"
     echo "        eg 20170901T230559Z"
-    echo "        YY => Year MM => Month DD => day hh => hour mm => minute ss => second"
+    echo "        YYYY => Year MM => Month DD => day hh => hour mm => minute ss => second"
     echo
     echo "Note 2: Currently does not support URL with Query or Fragment sections."
     exit 1
@@ -19,21 +19,23 @@ fi
 
 #
 # The First part of <dateTime> before the T
-date=$(echo ${dateTime} | sed -e 's/T.*//')
+date=${dateTime%%T*}
 
 #
-# Amazon URL Host are built up in sections.
-#   http://<service>-<region>.<Amazon End Point>/<Path>
+# Amazon Hosted URLS are built up in sections.
+#   http://<service>-<region>.<Amazon End Point><Path>
 #
 #   Strip out these parts from the url
-host=$(echo ${url} | sed -e 's#https://\([^/]*\)/.*#\1#')
-service=$(echo ${host} | sed -e 's#\([^-]\)-.*#\1#')
-region=$(echo ${host} | sed -e 's#[^-]*-\([^\.]*\)\..*#\1#')
-path=$(echo ${url} | sed -e 's#https://[^/]*\(/.*\)#\1#')
+urlNoSchema=${url#https://}
+host=${urlNoSchema%%/*}
+serviceRegion=${host%%\.*}
+service=${serviceRegion%%-*}
+region=${serviceRegion#*-}
+path=/${url#https://*/}
 expires=3600
 
 #
-# Build the conical request
+# Build the canonical request
 cr=$(cat - <<CanonicalRequest
 GET
 ${path}
@@ -45,7 +47,7 @@ UNSIGNED-PAYLOAD
 CanonicalRequest)
 
 #
-# Hash the conical request
+# Hash the canonical request
 HashedCanonicalRequest=$(echo -n "${cr}" | openssl dgst -sha256)
 
 #
@@ -59,8 +61,6 @@ StringToSign)
 
 #
 # Calculate the signature
-echo "XX ${date} ${region} ${service}"
-
 kDate=$(echo -n ${date}        | openssl dgst -sha256 -binary -hmac "AWS4${secret}")
 kRegn=$(echo -n ${region}      | openssl dgst -sha256 -binary -hmac "${kDate}")
 kServ=$(echo -n ${service}     | openssl dgst -sha256 -binary -hmac "${kRegn}")
@@ -70,37 +70,41 @@ signature=$(echo -n "${ss}"    | openssl dgst -sha256 -hmac "${kSign}")
 
 #
 # Dump intermediate values to compare against language specific implementation.
-echo "Intermediat Values"
-echo "url:                      ${url}"
-echo "key:                      ${key}"
-echo "secret:                   ${secret}"
-echo "dateTime:                 ${dateTime}"
-echo "date:                     ${date}"
-echo "host:                     ${host}"
-echo "path:                     ${path}"
-echo "service:                  ${service}"
-echo "region:                   ${region}"
-echo "expires:                  ${expires}"
-echo "HashedCanonicalRequest:   ${HashedCanonicalRequest}"
 kDateH=$(echo -n ${date}        | openssl dgst -sha256 -hmac "AWS4${secret}")
 kRegnH=$(echo -n ${region}      | openssl dgst -sha256 -hmac "${kDate}")
 kServH=$(echo -n ${service}     | openssl dgst -sha256 -hmac "${kRegn}")
 kSignH=$(echo -n "aws4_request" | openssl dgst -sha256 -hmac "${kServ}")
-echo "kDate:                    ${kDateH}"
-echo "kRegn:                    ${kRegnH}"
-echo "kServ:                    ${kServH}"
-echo "kSign:                    ${kSignH}"
-echo "signature:                ${signature}"
 
-echo
-echo "Cononical Request:"
-echo "=================="
-echo "${cr}"
-echo
-echo "Signing String:"
-echo "==============="
-echo "${ss}"
-echo
-echo "Signed URL:"
-echo "==========="
-echo "${url}?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=${key}%2F${date}%2F${region}%2F${service}%2Faws4_request&X-Amz-Date=${dateTime}&X-Amz-Expires=${expires}&X-Amz-SignedHeaders=host&X-Amz-Signature=${signature}"
+cat - <<IntermediateValues
+Intermediate Values
+url:                      ${url}
+key:                      ${key}
+secret:                   ${secret}
+dateTime:                 ${dateTime}
+date:                     ${date}
+host:                     ${host}
+path:                     ${path}
+service:                  ${service}
+region:                   ${region}
+expires:                  ${expires}
+HashedCanonicalRequest:   ${HashedCanonicalRequest}
+kDate:                    ${kDateH}
+kRegn:                    ${kRegnH}
+kServ:                    ${kServH}
+kSign:                    ${kSignH}
+signature:                ${signature}
+
+
+Cononical Request:
+==================
+${cr}
+
+Signing String:
+===============
+${ss}
+
+Signed URL:
+===========
+${url}?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=${key}%2F${date}%2F${region}%2F${service}%2Faws4_request&X-Amz-Date=${dateTime}&X-Amz-Expires=${expires}&X-Amz-SignedHeaders=host&X-Amz-Signature=${signature}
+IntermediateValues
+
