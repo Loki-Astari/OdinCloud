@@ -38,8 +38,16 @@ for var in "$@"; do
         signHeaders=1
         continue
     fi
-    if [[ "${var}" = '--expires' ]]; then
+    if [[ "${var%=*}" = '--expires' ]]; then
         expires=${var#*=}
+        continue
+    fi
+    if [[ "${var%=*}" == '--service' ]]; then
+        service=${var#*=}
+        continue
+    fi
+    if [[ "${var%=*}" == '--region' ]]; then
+        region=${var#*=}
         continue
     fi
     ARGS+=("$var")
@@ -47,7 +55,7 @@ done
 
 if [[ ${#ARGS[@]} < 3  || ${#ARGS[@]} > 4 ]]; then
     echo "Usage:"
-    echo "    sign <url> <key> <secret> [<TimeStamp>] [--headers=<fileName>] [--header=<Key>:<Value>] [--querys=<fileName>] [--query=<Key>:<Value>] [--signHeaders] [--expires=<TimeInSecs>] "
+    echo "    sign <url> <key> <secret> [<TimeStamp>] [--service=<service>] [--region=<region>] [--headers=<fileName>] [--header=<Key>:<Value>] [--querys=<fileName>] [--query=<Key>:<Value>] [--signHeaders] [--expires=<TimeInSecs>] "
     echo
     echo "Note 1: TimeStamp: must be YYYYMMDD'T'hhmmsa'Z's"
     echo "        eg 20170901T230559Z"
@@ -75,8 +83,8 @@ date=${dateTime%%T*}
 urlNoSchema=${url#https://}
 host=${urlNoSchema%%/*}
 serviceRegion=${host%%\.*}
-service=${serviceRegion%%-*}
-region=${serviceRegion#*-}
+service=${service-${serviceRegion%%-*}}
+region=${region-${serviceRegion#*-}}
 path=/${url#https://*/}
 file=${path##*/}
 
