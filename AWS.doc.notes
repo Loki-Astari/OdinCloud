@@ -1,0 +1,24 @@
+cp <LocalPath> <S3Uri>                  // Copy local to S3
+cp <S3Uri> <LocalPath>                  // Copy s3 to local
+cp <S3Uri> <S3Uri>                      // Copy s3 to s3
+
+ls                                      // List buckets
+ls <S3Uri>                              // List content of bucket with prefix
+
+mb <S3Uri>                              // Make Bucket
+
+mv <LocalPath> <S3Uri>                  // Move local to S3
+mv <S3Uri> <LocalPath>                  // Move S3 to local
+mv <S3Uri> <S3Uri>                      // Move S3 to S3
+
+presign <S3Uri>                         // Generates a pre-signed URL
+
+rb <S3Uri>                              // Remove Bucket
+
+rm <S3Uri>                              // Remove Object
+
+sync <LocalPath> <S3Uri>                // Sync files from local to s3
+sync <S3Uri> <LocalPath>                // Sync files from s3 to local
+sync <S3Uri> <S3Uri>                    // Sync files from s3 to s3
+
+website <S3Uri>                         // Sets up a bucket as a static website
