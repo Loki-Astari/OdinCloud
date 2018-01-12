@@ -4,6 +4,8 @@ declare -a ARGS
 declare -a headers
 expires=3600
 signHeaders=0
+service=""
+region=""
 verbose=0
 for var in "$@"; do
     if [[ "${var%=*}" = '--headers' ]]; then
