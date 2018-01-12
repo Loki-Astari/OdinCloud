@@ -22,6 +22,8 @@ fi
 
 function createSignature {
 
+    local saveIFS=${IFS}
+
     local url=$1
     local key=$2
     local secret=$3
@@ -120,6 +122,7 @@ ${headerList#;}
 UNSIGNED-PAYLOAD
 CanonicalRequest
     )
+    IFS=${saveIFS}
 
     #
     # Hash the canonical request
@@ -193,7 +196,7 @@ IntermediateValues
             fi
         done
         if [[ "${signHeaders}" == "1" ]]; then
-            echo "--header \"Authorization: AWS4-HMAC-SHA256 Credential=${key}/${date}/${region}/${service}/aws4_request, SignedHeaders=${headerList#;}, Signature=${signature}\" \"${url}${queryParam}\""
+            echo "--header \"Authorization: AWS4-HMAC-SHA256 Credential=${key}/${date}/${region}/${service}/aws4_request, SignedHeaders=${headerList#;}, Signature=${signature}\" \"https://${host}${path}${queryParam}${fragment}\""
         else
             echo "\"https://${host}${path}${queryParam}${querySep}X-Amz-Signature=${signature}${fragment}\""
         fi

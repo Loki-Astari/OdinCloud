@@ -41,10 +41,6 @@ for var in "$@"; do
     ARGS+=("$var")
 done
 
-echo HEADERS
-echo ${ARGS[@]}
-echo DONE
-echo
 if [[ ${#ARGS[@]} < 3  || ${#ARGS[@]} > 4 ]]; then
     echo "Usage:"
     echo "    sign <url> <key> <secret> [<TimeStamp>] [--service=<service>] [--region=<region>] [--headers=<fileName>] [--header=<Key>:<Value>] [--signHeaders] [--expires=<TimeInSecs>] [--verbose] "
