@@ -25,22 +25,6 @@ for var in "$@"; do
         headers+=(${keyValue})
         continue
     fi
-    if [[ "${var%=*}" = '--querys' ]]; then
-        file=${var#*=}
-        while IFS= read -r keyValue; do
-            key=${keyValue%:*}
-            val=${keyValue#*:}
-            querys+=("${key}=${val}")
-        done < ${file}
-        continue
-    fi
-    if [[ "${var%=*}" = '--query' ]]; then
-        keyValue=${var#*=}
-        key=${keyValue%:*}
-        val=${keyValue#*:}
-        querys+=("${key}=${val}")
-        continue
-    fi
     if [[ "${var}" = '--signHeaders' ]]; then
         signHeaders=1
         continue
@@ -62,13 +46,11 @@ done
 
 if [[ ${#ARGS[@]} < 3  || ${#ARGS[@]} > 4 ]]; then
     echo "Usage:"
-    echo "    sign <url> <key> <secret> [<TimeStamp>] [--service=<service>] [--region=<region>] [--headers=<fileName>] [--header=<Key>:<Value>] [--querys=<fileName>] [--query=<Key>:<Value>] [--signHeaders] [--expires=<TimeInSecs>] "
+    echo "    sign <url> <key> <secret> [<TimeStamp>] [--service=<service>] [--region=<region>] [--headers=<fileName>] [--header=<Key>:<Value>] [--signHeaders] [--expires=<TimeInSecs>] "
     echo
     echo "Note 1: TimeStamp: must be YYYYMMDD'T'hhmmsa'Z's"
     echo "        eg 20170901T230559Z"
     echo "        YYYY => Year MM => Month DD => day hh => hour mm => minute ss => second"
-    echo
-    echo "Note 2: Currently does not support URL with Query or Fragment sections."
     exit 1
 fi
 
@@ -92,9 +74,24 @@ host=${urlNoSchema%%/*}
 serviceRegion=${host%%\.*}
 service=${service-${serviceRegion%%-*}}
 region=${region-${serviceRegion#*-}}
-path=/${url#https://*/}
+pathAndQueryFrag=/${url#https://*/}
+pathAndQuery=${pathAndQueryFrag%%#*}
+path=${pathAndQuery%%\?*}
+queryItems=${pathAndQuery##*\?}
+if [[ "${queryItems}" == "${pathAndQuery}" ]]; then
+    queryItems=""
+fi
+fragment=${pathAndQueryFrag##*#}
+if [[ "${fragment}" == "${pathAndQueryFrag}" ]]; then
+    fragment=""
+else
+    fragment="#${fragment}"
+fi
 file=${path##*/}
 
+for loop in $(echo ${queryItems} | sed -e 's/&/ /'); do
+    querys+=($loop)
+done
 
 headers+=("Host:${host}")
 if [[ "${signHeaders}" == "1" ]]; then
@@ -198,7 +195,7 @@ ${ss}
 
 Signed URL:
 ===========
-${url}${queryParam}${querySep}X-Amz-Signature=${signature}
+https://${host}${path}${queryParam}${querySep}X-Amz-Signature=${signature}${fragment}
 
 Headers:
 ========
@@ -223,7 +220,7 @@ done
 if [[ "${signHeaders}" == "1" ]]; then
     echo "--header \"Authorization: AWS4-HMAC-SHA256 Credential=${key}/${date}/${region}/${service}/aws4_request, SignedHeaders=${headerList#;}, Signature=${signature}\" \"${url}${queryParam}\""
 else
-    echo "\"${url}${queryParam}${querySep}X-Amz-Signature=${signature}\""
+    echo "\"https://${host}${path}${queryParam}${querySep}X-Amz-Signature=${signature}${fragment}\""
 fi
 
 
