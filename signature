@@ -1,0 +1,213 @@
+#!/usr/bin/env bash
+
+check=$(echo -n s3 | openssl dgst -sha256 -binary -mac HMAC -macopt hexkey:01dda345af12 2> /dev/null | xxd -p -c 256)
+if [[ "${check}" != "6d00e194dca4f102300b638bb3404a1c9b8c1ba73514d22a7013f9832c20366a" ]]; then
+    echo "Check of openssl failed"
+    echo "You need a verions greater than 0"
+    exit 1
+fi
+
+
+#
+#   url
+#   key
+#   secret
+#   dateTime        if empty use now utc
+#   expires
+#   service         if blank extracts from the URL
+#   region          if blank extracts from the URL
+#   signHeaders     if 1 creates headers for signing otherwise creates query parameters
+#   verbose         if 1 prints out lots of information. Otherwise just what is needed
+#   headers[@]
+
+function createSignature {
+
+    local url=$1
+    local key=$2
+    local secret=$3
+    local dateTime=$(echo $4 | xargs)
+    local expires=$5
+    local service=$6
+    local region=$7
+    local signHeaders=$8
+    local verbose=$9
+    local headers=("${!10}")
+
+    if [[ "${dateTime}" == "" ]]; then
+        dateTime=$(date -u +"%Y%m%dT%H%M%SZ")
+    fi
+
+    #
+    # The First part of <dateTime> before the T
+    local date=${dateTime%%T*}
+
+    #
+    # Amazon Hosted URLS are built up in sections.
+    #   http://<service>-<region>.<Amazon End Point><Path>
+    #
+    #   Strip out these parts from the url
+    local urlNoSchema=${url#https://}
+    local host=${urlNoSchema%%/*}
+    local serviceRegion=${host%%\.*}
+    local service=${service-${serviceRegion%%-*}}
+    local region=${region-${serviceRegion#*-}}
+    local pathAndQueryFrag=/${url#https://*/}
+    local pathAndQuery=${pathAndQueryFrag%%#*}
+    local path=${pathAndQuery%%\?*}
+    local queryItems=${pathAndQuery##*\?}
+    if [[ "${queryItems}" == "${pathAndQuery}" ]]; then
+        queryItems=""
+    fi
+    local fragment=${pathAndQueryFrag##*#}
+    if [[ "${fragment}" == "${pathAndQueryFrag}" ]]; then
+        fragment=""
+    else
+        fragment="#${fragment}"
+    fi
+    local file=${path##*/}
+
+    local -a querys
+    for loop in $(echo ${queryItems} | sed -e 's/&/ /'); do
+        querys+=($loop)
+    done
+
+    headers+=("Host:${host}")
+    if [[ "${signHeaders}" == "1" ]]; then
+        headers+=("X-Amz-Date:${dateTime}")
+        headers+=("X-Amz-Content-SHA256:UNSIGNED-PAYLOAD")
+    fi
+
+    local crheaders=()
+    local headerExtra=""
+    local headerList=""
+    for loop in "${headers[@]}"; do
+        local name=$(tr '[A-Z]' '[a-z]' <<< "${loop%:*}")
+        crheaders+=("${name}:${loop#*:}")
+    done
+    IFS=$'\n' sortedHeaders=($(sort <<<"${crheaders[*]}"))
+    for loop in "${sortedHeaders[@]}"; do
+        local name=${loop%:*}
+        headerExtra+="%3B${name}"
+        headerList+=";${name}"
+    done
+
+    if [[ "${signHeaders}" != "1" ]]; then
+        querys+=("X-Amz-Algorithm=AWS4-HMAC-SHA256")
+        querys+=("X-Amz-Credential=${key}%2F${date}%2F${region}%2F${service}%2Faws4_request")
+        querys+=("X-Amz-Date=${dateTime}")
+        querys+=("X-Amz-Expires=${expires}")
+        querys+=("X-Amz-SignedHeaders=${headerExtra#%3B}")
+    fi
+
+    IFS=$'\n' sortedQuerys=($(sort <<<"${querys[*]}"))
+    local queryParam=""
+    local querySep='?'
+    for loop in "${sortedQuerys[@]}"; do
+        queryParam+="${querySep}${loop}"
+        querySep='&'
+    done
+
+    #
+    # Build the canonical request
+    IFS=$'\n'
+    cr=$(uniq <<CanonicalRequest
+GET
+${path}
+${queryParam#?}
+${sortedHeaders[*]}
+
+${headerList#;}
+UNSIGNED-PAYLOAD
+CanonicalRequest
+    )
+
+    #
+    # Hash the canonical request
+    local HashedCanonicalRequest=$(echo -n "${cr}" | openssl dgst -sha256 -binary | xxd -p -c 256)
+
+    #
+    # Build the String to sign.
+    local ss=$(cat - <<StringToSign
+AWS4-HMAC-SHA256
+${dateTime}
+${date}/${region}/${service}/aws4_request
+${HashedCanonicalRequest}
+StringToSign
+    )
+
+    #
+    # Calculate the signature
+    local kDate=$(echo -n ${date}        | openssl dgst -sha256 -binary -hmac "AWS4${secret}" | xxd -p -c 256)
+    local kRegn=$(echo -n ${region}      | openssl dgst -sha256 -binary -mac HMAC -macopt "hexkey:${kDate}" | xxd -p -c 256)
+    local kServ=$(echo -n ${service}     | openssl dgst -sha256 -binary -mac HMAC -macopt "hexkey:${kRegn}" | xxd -p -c 256)
+    local kSign=$(echo -n "aws4_request" | openssl dgst -sha256 -binary -mac HMAC -macopt "hexkey:${kServ}" | xxd -p -c 256)
+    local signature=$(echo -n "${ss}"    | openssl dgst -sha256 -binary -mac HMAC -macopt "hexkey:${kSign}" | xxd -p -c 256)
+
+    if [[ "${verbose}" == "1" ]]; then
+        cat - <<IntermediateValues
+Intermediate Values
+url:                      ${url}
+key:                      ${key}
+secret:                   ${secret}
+dateTime:                 ${dateTime}
+date:                     ${date}
+host:                     ${host}
+path:                     ${path}
+service:                  ${service}
+region:                   ${region}
+expires:                  ${expires}
+HashedCanonicalRequest:   ${HashedCanonicalRequest}
+kDate:                    ${kDate}
+kRegn:                    ${kRegn}
+kServ:                    ${kServ}
+kSign:                    ${kSign}
+signature:                ${signature}
+
+
+Cononical Request:
+==================
+${cr}
+
+Signing String:
+===============
+${ss}
+
+Signed URL:
+===========
+https://${host}${path}${queryParam}${querySep}X-Amz-Signature=${signature}${fragment}
+
+Headers:
+========
+IntermediateValues
+
+        printf "%s\n" ${headers[@]}
+        echo
+
+        echo "CURL COMMAND:"
+        echo "============="
+
+        echo -n "curl -o ${file} "
+        for loop in "${headers[@]}"; do
+            if [[ ${loop%:*} != "Host" ]]; then
+                echo -n "--header \"${loop}\" "
+            fi
+        done
+        if [[ "${signHeaders}" == "1" ]]; then
+            echo "--header \"Authorization: AWS4-HMAC-SHA256 Credential=${key}/${date}/${region}/${service}/aws4_request, SignedHeaders=${headerList#;}, Signature=${signature}\" \"${url}${queryParam}\""
+        else
+            echo "\"https://${host}${path}${queryParam}${querySep}X-Amz-Signature=${signature}${fragment}\""
+        fi
+        echo
+        echo "OUTPUT"
+        echo "======"
+    fi
+
+    if [[ "${signHeaders}" == "1" ]]; then
+        echo "Authorization: AWS4-HMAC-SHA256 Credential=${key}/${date}/${region}/${service}/aws4_request, SignedHeaders=${headerList#;}, Signature=${signature}"
+    else
+        echo "X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=${key}%2F${date}%2F${region}%2F${service}%2Faws4_request&X-Amz-Date=${dateTime}&X-Amz-Expires=${expires}&X-Amz-SignedHeaders=${headerExtra#%3B}&X-Amz-Signature=${signature}"
+    fi
+
+}
+
+
