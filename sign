@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 
+badflag=0
 declare -a ARGS
+
 declare -a headers
 expires=3600
 signHeaders=0
@@ -8,6 +10,7 @@ service=""
 region=""
 verbose=
 method=GET
+
 for var in "$@"; do
     if [[ "${var%=*}" = '--headers' ]]; then
         file=${var#*=}
@@ -45,10 +48,16 @@ for var in "$@"; do
         method=${var#*=}
         continue
     fi
+    flag=${var#-}
+    if [[ "${flag}" != ${var} ]]; then
+        badflag=1
+        echo "Bad flag: ${var}"
+        continue
+    fi
     ARGS+=("$var")
 done
 
-if [[ ${#ARGS[@]} < 3  || ${#ARGS[@]} > 4 ]]; then
+if [[ ${badflag} != 0 || ( ${#ARGS[@]} < 3  || ${#ARGS[@]} > 4 ) ]]; then
     echo "Usage:"
     echo "    sign <url> <key> <secret> [<TimeStamp>] [--method=<Method>] [--service=<service>] [--region=<region>] [--headers=<fileName>] [--header=<Key>:<Value>] [--signHeaders] [--expires=<TimeInSecs>] [--verbose] "
     echo
