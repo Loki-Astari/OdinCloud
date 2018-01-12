@@ -6,7 +6,7 @@ expires=3600
 signHeaders=0
 service=""
 region=""
-verbose=0
+verbose=
 method=GET
 for var in "$@"; do
     if [[ "${var%=*}" = '--headers' ]]; then
@@ -38,7 +38,7 @@ for var in "$@"; do
         continue
     fi
     if [[ "${var}" == '--verbose' ]]; then
-        verbose=1
+        verbose='/dev/stdout'
         continue
     fi
     if [[ "${var%=*}" == '--method' ]]; then
