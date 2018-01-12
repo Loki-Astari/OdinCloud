@@ -1,5 +1,12 @@
 #!/usr/bin/env bash
 
+check=$(echo -n s3 | openssl dgst -sha256 -binary -mac HMAC -macopt hexkey:01dda345af12 2> /dev/null | xxd -p -c 256)
+if [[ "${check}" != "6d00e194dca4f102300b638bb3404a1c9b8c1ba73514d22a7013f9832c20366a" ]]; then
+    echo "Check of openssl failed"
+    echo "You need a verions greater than 0"
+    exit 1
+fi
+
 declare -a ARGS
 declare -a headers
 declare -a querys
@@ -141,7 +148,7 @@ CanonicalRequest
 
 #
 # Hash the canonical request
-HashedCanonicalRequest=$(echo -n "${cr}" | openssl dgst -sha256)
+HashedCanonicalRequest=$(echo -n "${cr}" | openssl dgst -sha256 -binary | xxd -p -c 256)
 
 #
 # Build the String to sign.
@@ -155,19 +162,11 @@ StringToSign
 
 #
 # Calculate the signature
-kDate=$(echo -n ${date}        | openssl dgst -sha256 -binary -hmac "AWS4${secret}")
-kRegn=$(echo -n ${region}      | openssl dgst -sha256 -binary -hmac "${kDate}")
-kServ=$(echo -n ${service}     | openssl dgst -sha256 -binary -hmac "${kRegn}")
-kSign=$(echo -n "aws4_request" | openssl dgst -sha256 -binary -hmac "${kServ}")
-signature=$(echo -n "${ss}"    | openssl dgst -sha256 -hmac "${kSign}")
-
-
-#
-# Dump intermediate values to compare against language specific implementation.
-kDateH=$(openssl dgst -sha256 -hmac "AWS4${secret}" <<< "${date}")
-kRegnH=$(openssl dgst -sha256 -hmac "${kDate}" <<< "${region}")
-kServH=$(openssl dgst -sha256 -hmac "${kRegn}" <<< "${service}")
-kSignH=$(openssl dgst -sha256 -hmac "${kServ}" <<< "aws4_request")
+kDate=$(echo -n ${date}        | openssl dgst -sha256 -binary -hmac "AWS4${secret}" | xxd -p -c 256)
+kRegn=$(echo -n ${region}      | openssl dgst -sha256 -binary -mac HMAC -macopt "hexkey:${kDate}" | xxd -p -c 256)
+kServ=$(echo -n ${service}     | openssl dgst -sha256 -binary -mac HMAC -macopt "hexkey:${kRegn}" | xxd -p -c 256)
+kSign=$(echo -n "aws4_request" | openssl dgst -sha256 -binary -mac HMAC -macopt "hexkey:${kServ}" | xxd -p -c 256)
+signature=$(echo -n "${ss}"    | openssl dgst -sha256 -binary -mac HMAC -macopt "hexkey:${kSign}" | xxd -p -c 256)
 
 cat - <<IntermediateValues
 Intermediate Values
@@ -182,10 +181,10 @@ service:                  ${service}
 region:                   ${region}
 expires:                  ${expires}
 HashedCanonicalRequest:   ${HashedCanonicalRequest}
-kDate:                    ${kDateH}
-kRegn:                    ${kRegnH}
-kServ:                    ${kServH}
-kSign:                    ${kSignH}
+kDate:                    ${kDate}
+kRegn:                    ${kRegn}
+kServ:                    ${kServ}
+kSign:                    ${kSign}
 signature:                ${signature}
 
 
