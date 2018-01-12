@@ -1,0 +1,149 @@
+#!/usr/bin/env bash
+
+# ./sign 'https://s3.amazonaws.com/icewall/IceWall.jpg?tom=1&bob=2#code' 'AKIAJUTZJXQ33XTA27RA' 'HaGXorkshPOr2M+yjIR3iKbVDCkrM0cHhZHJGx4C'  20180112T021056Z --service=s3 --region=us-east-1  --header=top:5 --header=bot:mark  --signHeaders --verbose >> test/signature
+
+source signature
+
+#
+# The unit tests assume the access key and secret key are in the appropriate environment variables.
+# The test try and extract the File IceWall.jpg from the bucket icewall
+# The test pass in a bunch of query and test parameters to make sure we can pass both
+
+function createSignatureHeaderTest {
+
+    declare -a h=("top:5" "bot:mark")
+    createSignature "https://s3.amazonaws.com/icewall/IceWall.jpg?tom=1&bob=2#code" "AKIAJUTZJXQ33XTA27RA" "HaGXorkshPOr2M+yjIR3iKbVDCkrM0cHhZHJGx4C" 20180112T021056Z 3600 s3 us-east-1 1 1 h[@] > /tmp/signature.test
+    diff - /tmp/signature.test <<QueryExpected
+Intermediate Values
+url:                      https://s3.amazonaws.com/icewall/IceWall.jpg?tom=1&bob=2#code
+key:                      AKIAJUTZJXQ33XTA27RA
+secret:                   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
+dateTime:                 20180112T021056Z
+date:                     20180112
+host:                     s3.amazonaws.com
+path:                     /icewall/IceWall.jpg
+service:                  s3
+region:                   us-east-1
+expires:                  3600
+HashedCanonicalRequest:   0c55f04c19e7b39a47af831dcc90b762f74d885b1cc769079a104bebfac0e69b
+kDate:                    de30f1a4531c2b0d042f4bd5596a306d1365a2ba5a5f77c1423cfb1122bd1164
+kRegn:                    fd8b7ab5d20d621871c2fceb6de402aa156edb2afb5a728f625155b5ca3097b0
+kServ:                    1a6601914187e06748a932e5354ca5867584da45b955fba2ebcd96d48366a302
+kSign:                    2aa1c39d7c90cac080ebc218f8e98af52c1311725ed2ad92251275773c03f645
+signature:                81fff7becc82bda98559608a475d24ec453fa107a854af86313909958ce28b89
+
+
+Cononical Request:
+==================
+GET
+/icewall/IceWall.jpg
+bob=2&tom=1
+bot:mark
+host:s3.amazonaws.com
+top:5
+x-amz-content-sha256:UNSIGNED-PAYLOAD
+x-amz-date:20180112T021056Z
+
+bot;host;top;x-amz-content-sha256;x-amz-date
+UNSIGNED-PAYLOAD
+
+Signing String:
+===============
+AWS4-HMAC-SHA256
+20180112T021056Z
+20180112/us-east-1/s3/aws4_request
+0c55f04c19e7b39a47af831dcc90b762f74d885b1cc769079a104bebfac0e69b
+
+Signed URL:
+===========
+https://s3.amazonaws.com/icewall/IceWall.jpg?bob=2&tom=1&X-Amz-Signature=81fff7becc82bda98559608a475d24ec453fa107a854af86313909958ce28b89#code
+
+Headers:
+========
+top:5
+bot:mark
+Host:s3.amazonaws.com
+X-Amz-Date:20180112T021056Z
+X-Amz-Content-SHA256:UNSIGNED-PAYLOAD
+
+CURL COMMAND:
+=============
+curl -o IceWall.jpg --header "top:5" --header "bot:mark" --header "X-Amz-Date:20180112T021056Z" --header "X-Amz-Content-SHA256:UNSIGNED-PAYLOAD" --header "Authorization: AWS4-HMAC-SHA256 Credential=AKIAJUTZJXQ33XTA27RA/20180112/us-east-1/s3/aws4_request, SignedHeaders=bot;host;top;x-amz-content-sha256;x-amz-date, Signature=81fff7becc82bda98559608a475d24ec453fa107a854af86313909958ce28b89" "https://s3.amazonaws.com/icewall/IceWall.jpg?bob=2&tom=1#code"
+
+OUTPUT
+======
+Authorization: AWS4-HMAC-SHA256 Credential=AKIAJUTZJXQ33XTA27RA/20180112/us-east-1/s3/aws4_request, SignedHeaders=bot;host;top;x-amz-content-sha256;x-amz-date, Signature=81fff7becc82bda98559608a475d24ec453fa107a854af86313909958ce28b89
+QueryExpected
+}
+
+
+
+function createSignatureQueryTest {
+
+    declare -a h=("top:5" "bot:mark")
+    createSignature "https://s3.amazonaws.com/icewall/IceWall.jpg?tom=1&bob=2#code" "AKIAJUTZJXQ33XTA27RA" "HaGXorkshPOr2M+yjIR3iKbVDCkrM0cHhZHJGx4C" 20180112T021056Z 3600 s3 us-east-1 0 1 h[@] > /tmp/signature.test
+    diff - /tmp/signature.test <<QueryExpected
+Intermediate Values
+url:                      https://s3.amazonaws.com/icewall/IceWall.jpg?tom=1&bob=2#code
+key:                      AKIAJUTZJXQ33XTA27RA
+secret:                   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
+dateTime:                 20180112T021056Z
+date:                     20180112
+host:                     s3.amazonaws.com
+path:                     /icewall/IceWall.jpg
+service:                  s3
+region:                   us-east-1
+expires:                  3600
+HashedCanonicalRequest:   09f6500b2713a115387cc613aec54d46362020d7d87d9091729c04fa706b1ef4
+kDate:                    de30f1a4531c2b0d042f4bd5596a306d1365a2ba5a5f77c1423cfb1122bd1164
+kRegn:                    fd8b7ab5d20d621871c2fceb6de402aa156edb2afb5a728f625155b5ca3097b0
+kServ:                    1a6601914187e06748a932e5354ca5867584da45b955fba2ebcd96d48366a302
+kSign:                    2aa1c39d7c90cac080ebc218f8e98af52c1311725ed2ad92251275773c03f645
+signature:                cb563b11e0b66138d906a1d5444ed532a223f3ea5aa96e08d9fa8e1eb7ff17ae
+
+
+Cononical Request:
+==================
+GET
+/icewall/IceWall.jpg
+X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAJUTZJXQ33XTA27RA%2F20180112%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20180112T021056Z&X-Amz-Expires=3600&X-Amz-SignedHeaders=bot%3Bhost%3Btop&bob=2&tom=1
+bot:mark
+host:s3.amazonaws.com
+top:5
+
+bot;host;top
+UNSIGNED-PAYLOAD
+
+Signing String:
+===============
+AWS4-HMAC-SHA256
+20180112T021056Z
+20180112/us-east-1/s3/aws4_request
+09f6500b2713a115387cc613aec54d46362020d7d87d9091729c04fa706b1ef4
+
+Signed URL:
+===========
+https://s3.amazonaws.com/icewall/IceWall.jpg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAJUTZJXQ33XTA27RA%2F20180112%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20180112T021056Z&X-Amz-Expires=3600&X-Amz-SignedHeaders=bot%3Bhost%3Btop&bob=2&tom=1&X-Amz-Signature=cb563b11e0b66138d906a1d5444ed532a223f3ea5aa96e08d9fa8e1eb7ff17ae#code
+
+Headers:
+========
+top:5
+bot:mark
+Host:s3.amazonaws.com
+
+CURL COMMAND:
+=============
+curl -o IceWall.jpg --header "top:5" --header "bot:mark" "https://s3.amazonaws.com/icewall/IceWall.jpg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAJUTZJXQ33XTA27RA%2F20180112%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20180112T021056Z&X-Amz-Expires=3600&X-Amz-SignedHeaders=bot%3Bhost%3Btop&bob=2&tom=1&X-Amz-Signature=cb563b11e0b66138d906a1d5444ed532a223f3ea5aa96e08d9fa8e1eb7ff17ae#code"
+
+OUTPUT
+======
+X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAJUTZJXQ33XTA27RA%2F20180112%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20180112T021056Z&X-Amz-Expires=3600&X-Amz-SignedHeaders=bot%3Bhost%3Btop&X-Amz-Signature=cb563b11e0b66138d906a1d5444ed532a223f3ea5aa96e08d9fa8e1eb7ff17ae
+QueryExpected
+}
+
+echo "Running: QueryTest"
+createSignatureQueryTest
+echo "Running: HeaderTest"
+createSignatureHeaderTest
+
+
