@@ -7,6 +7,7 @@ signHeaders=0
 service=""
 region=""
 verbose=0
+method=GET
 for var in "$@"; do
     if [[ "${var%=*}" = '--headers' ]]; then
         file=${var#*=}
@@ -36,8 +37,12 @@ for var in "$@"; do
         region=${var#*=}
         continue
     fi
-    if [[ "${var}" == "--verbose" ]]; then
+    if [[ "${var}" == '--verbose' ]]; then
         verbose=1
+        continue
+    fi
+    if [[ "${var%=*}" == '--method' ]]; then
+        method=${var#*=}
         continue
     fi
     ARGS+=("$var")
@@ -45,7 +50,7 @@ done
 
 if [[ ${#ARGS[@]} < 3  || ${#ARGS[@]} > 4 ]]; then
     echo "Usage:"
-    echo "    sign <url> <key> <secret> [<TimeStamp>] [--service=<service>] [--region=<region>] [--headers=<fileName>] [--header=<Key>:<Value>] [--signHeaders] [--expires=<TimeInSecs>] [--verbose] "
+    echo "    sign <url> <key> <secret> [<TimeStamp>] [--method=<Method>] [--service=<service>] [--region=<region>] [--headers=<fileName>] [--header=<Key>:<Value>] [--signHeaders] [--expires=<TimeInSecs>] [--verbose] "
     echo
     echo "Note 1: TimeStamp: must be YYYYMMDD'T'hhmmsa'Z's"
     echo "        eg 20170901T230559Z"
@@ -60,4 +65,4 @@ secret=${ARGS[2]}
 dateTime=${ARGS[3]-$(date -u +"%Y%m%dT%H%M%SZ")}
 
 source signature
-createSignature "${url}" "${key}" "${secret}" "${dateTime}" "${expires}" "${service}" "${region}" "${signHeaders}" "${verbose}" headers[@]
+createSignature "${method}" "${url}" "${key}" "${secret}" "${dateTime}" "${expires}" "${service}" "${region}" "${signHeaders}" "${verbose}" headers[@]

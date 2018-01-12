@@ -12,7 +12,7 @@ source signature
 function createSignatureHeaderTest {
 
     declare -a h=("top:5" "bot:mark")
-    createSignature "https://s3.amazonaws.com/icewall/IceWall.jpg?tom=1&bob=2#code" "AKIAJUTZJXQ33XTA27RA" "HaGXorkshPOr2M+yjIR3iKbVDCkrM0cHhZHJGx4C" 20180112T021056Z 3600 s3 us-east-1 1 1 h[@] > /tmp/signature.test
+    createSignature GET "https://s3.amazonaws.com/icewall/IceWall.jpg?tom=1&bob=2#code" "AKIAJUTZJXQ33XTA27RA" "HaGXorkshPOr2M+yjIR3iKbVDCkrM0cHhZHJGx4C" 20180112T021056Z 3600 s3 us-east-1 1 1 h[@] > /tmp/signature.test
     diff - /tmp/signature.test <<QueryExpected
 Intermediate Values
 url:                      https://s3.amazonaws.com/icewall/IceWall.jpg?tom=1&bob=2#code
@@ -81,7 +81,7 @@ QueryExpected
 function createSignatureQueryTest {
 
     declare -a h=("top:5" "bot:mark")
-    createSignature "https://s3.amazonaws.com/icewall/IceWall.jpg?tom=1&bob=2#code" "AKIAJUTZJXQ33XTA27RA" "HaGXorkshPOr2M+yjIR3iKbVDCkrM0cHhZHJGx4C" 20180112T021056Z 3600 s3 us-east-1 0 1 h[@] > /tmp/signature.test
+    createSignature GET "https://s3.amazonaws.com/icewall/IceWall.jpg?tom=1&bob=2#code" "AKIAJUTZJXQ33XTA27RA" "HaGXorkshPOr2M+yjIR3iKbVDCkrM0cHhZHJGx4C" 20180112T021056Z 3600 s3 us-east-1 0 1 h[@] > /tmp/signature.test
     diff - /tmp/signature.test <<QueryExpected
 Intermediate Values
 url:                      https://s3.amazonaws.com/icewall/IceWall.jpg?tom=1&bob=2#code

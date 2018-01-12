@@ -24,16 +24,17 @@ function createSignature {
 
     local saveIFS=${IFS}
 
-    local url=$1
-    local key=$2
-    local secret=$3
-    local dateTime=$(echo $4 | xargs)
-    local expires=$5
-    local service=$6
-    local region=$7
-    local signHeaders=$8
-    local verbose=$9
-    local headers=("${!10}")
+    local method=$1
+    local url=$2
+    local key=$3
+    local secret=$4
+    local dateTime=$(echo $5 | xargs)
+    local expires=$6
+    local service=$7
+    local region=$8
+    local signHeaders=$9
+    local verbose=${10}
+    local headers=("${!11}")
 
     if [[ "${dateTime}" == "" ]]; then
         dateTime=$(date -u +"%Y%m%dT%H%M%SZ")
@@ -113,7 +114,7 @@ function createSignature {
     # Build the canonical request
     IFS=$'\n'
     cr=$(uniq <<CanonicalRequest
-GET
+${method}
 ${path}
 ${queryParam#?}
 ${sortedHeaders[*]}
