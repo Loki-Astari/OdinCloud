@@ -1,0 +1,42 @@
+#!/bin/bash
+
+badflag=0
+declare -a ARGS
+
+
+verbose=''
+dryrun=0
+for var in "$@"; do
+    if [[ "${var}" == '--verbose' ]]; then
+        verbose='/dev/stdout'
+        continue
+    fi
+    if [[ "${var}" == '--dryrun' ]]; then
+        dryrun=1
+        continue;
+    fi
+    flag=${var#-}
+    if [[ "${flag}" != ${var} ]]; then
+        badflag=1
+        echo "Bad flag: ${var}"
+        continue
+    fi
+    ARGS+=("$var")
+done
+
+if [[ ${#ARGS[@]} != 4 || ${badflag} != 0 ]]; then
+    echo "Usage:"
+    echo "s3cp  <file> <s3-url> <key> <secret> [--verbose] [--dryrun]"
+    exit 1
+fi
+
+file=${ARGS[0]}
+s3=${ARGS[1]}
+key=${ARGS[2]}
+secret=${ARGS[3]}
+
+source signature
+source upload
+
+upload "${file}" "${s3}" "${key}" "${secret}" "${verbose}" "${dryrun}"
+
