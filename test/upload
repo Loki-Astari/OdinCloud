@@ -9,7 +9,7 @@ source ${dir}/../s3/upload
 
 function uploadTest {
 
-    upload /Users/yorkm/Pictures/Me.jpg s3://icewall/Photo/Test.jpg 'AKIAJUTZJXQ33XTA27RA' 'HaGXorkshPOr2M+yjIR3iKbVDCkrM0cHhZHJGx4C' 20180113T022706Z /dev/stdout 1 > /tmp/upload.test
+    upload /Users/yorkm/Pictures/Me.jpg s3://icewall/Photo/Test.jpg 'AKIAJUTZJXQ33XTA27RA' 'HaGXorkshPOr2M+yjIR3iKbVDCkrM0cHhZHJGx4C' 20180113T022706Z /dev/stdout 1 20207 > /tmp/upload.test
     diff - /tmp/upload.test <<QueryExpected
 Intermediate Values
 url:                      https://icewall.s3.amazonaws.com/Photo/Test.jpg

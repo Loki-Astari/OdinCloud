@@ -9,6 +9,7 @@ function upload {
     local dateTime=$(echo $5 | xargs)
     local verbose=$6
     local dryrun=$7
+    local size=$8
 
     local s3Path=${s3#s3://}
     local bucket=${s3Path%%/*}
@@ -24,7 +25,9 @@ function upload {
         dateTime=$(date -u +"%Y%m%dT%H%M%SZ")
     fi
 
-    local size=$(stat -f "%z" ${file})
+    if [[ "${size}" == "" ]]; then
+        size=$(stat -f "%z" ${file})
+    fi
 
     local url=https://${bucket}.s3.amazonaws.com/${path}
     declare -a headers=("Content-Length:${size}")
