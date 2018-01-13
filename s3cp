@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 badflag=0
 declare -a ARGS
@@ -7,6 +7,8 @@ function usage {
     echo "Usage:"
     echo "s3cp  <file> <s3-url> [--key=<key>] [--secret=<secret>] [--verbose] [--dryrun]"
     echo "s3cp  <s3-url> <file> [--key=<key>] [--secret=<secret>] [--verbose] [--dryrun]"
+    echo
+    echo "s3-url:  s3://<bucket>/<Object-Path>"
     exit 1
 }
 

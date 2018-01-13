@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+#
+# Note the access/secret key listed here are already deleted.
+
 dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source ${dir}/../s3/signature
 source ${dir}/../s3/upload
