@@ -34,14 +34,40 @@ if [[ ${#ARGS[@]} != 4 || ${badflag} != 0 ]]; then
     usage
 fi
 
-file=${ARGS[0]}
-s3=${ARGS[1]}
+src=${ARGS[0]}
+dst=${ARGS[1]}
 key=${ARGS[2]}
 secret=${ARGS[3]}
 
-dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source ${dir}/signature
-source ${dir}/upload
+doUpload=0
+doDownload=0
+srcS3=${src#s3://}
+if [[ "${src}" == "${srcS3}" ]]; then
+    doUpload=1
+fi
+dstS3=${dst#s3://}
+if [[ "${dst}" == "${dstS3}" ]]; then
+    doDownload=1
+fi
 
-upload "${file}" "${s3}" "${key}" "${secret}" '' "${verbose}" "${dryrun}"
+if [[ ${doUpload} == 0 && ${doDownload} == 0 ]]; then
+    echo "Neither source or destination is on S3. Just use normal cp"
+    usage
+fi
+if [[ ${doUpload} == 1 && ${doDownload} == 1 ]]; then
+    echo "Both source or destination is on S3. Don't support move yet."
+    usage
+fi
+
+dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source ${dir}/s3/signature
+
+
+if [[ ${doUpload} == 1 ]]; then
+    source ${dir}/s3/upload
+    upload "${src}" "${dst}" "${key}" "${secret}" '' "${verbose}" "${dryrun}"
+else
+    source ${dir}/s3/download
+    download "${src}" "${dst}" "${key}" "${secret}" '' "${verbose}" "${dryrun}"
+fi
 
