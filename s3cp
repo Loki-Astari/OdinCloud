@@ -5,13 +5,15 @@ declare -a ARGS
 
 function usage {
     echo "Usage:"
-    echo "s3cp  <file> <s3-url> <key> <secret> [--verbose] [--dryrun]"
-    echo "s3cp  <s3-url> <file> <key> <secret> [--verbose] [--dryrun]"
+    echo "s3cp  <file> <s3-url> [--key=<key>] [--secret=<secret>] [--verbose] [--dryrun]"
+    echo "s3cp  <s3-url> <file> [--key=<key>] [--secret=<secret>] [--verbose] [--dryrun]"
     exit 1
 }
 
 verbose=''
 dryrun=0
+access=${AMZ_ACCESS_KEY}
+secret=${AMZ_SECRET_KEY}
 for var in "$@"; do
     if [[ "${var}" == '--verbose' ]]; then
         verbose='/dev/stdout'
@@ -19,6 +21,14 @@ for var in "$@"; do
     fi
     if [[ "${var}" == '--dryrun' ]]; then
         dryrun=1
+        continue;
+    fi
+    if [[ "${var%=*}" == "--key" ]]; then
+        access=${var#*=}
+        continue;
+    fi
+    if [[ "${var%=*}" == "--secret" ]]; then
+        secret=${var#*=}
         continue;
     fi
     flag=${var#-}
@@ -30,14 +40,18 @@ for var in "$@"; do
     ARGS+=("$var")
 done
 
-if [[ ${#ARGS[@]} != 4 || ${badflag} != 0 ]]; then
+if [[ "${access}" == "" || "${secret}" == "" ]]; then
+    echo "Error: No Access or Secret provided."
+    echo "These can be set in the environment variables AMZ_ACCESS_KEY/AMZ_SECRET_KEY or passed with flags"
+    usage
+fi
+
+if [[ ${#ARGS[@]} != 2 || ${badflag} != 0 ]]; then
     usage
 fi
 
 src=${ARGS[0]}
 dst=${ARGS[1]}
-key=${ARGS[2]}
-secret=${ARGS[3]}
 
 doUpload=0
 doDownload=0
@@ -65,9 +79,9 @@ source ${dir}/s3/signature
 
 if [[ ${doUpload} == 1 ]]; then
     source ${dir}/s3/upload
-    upload "${src}" "${dst}" "${key}" "${secret}" '' "${verbose}" "${dryrun}"
+    upload "${src}" "${dst}" "${access}" "${secret}" '' "${verbose}" "${dryrun}"
 else
     source ${dir}/s3/download
-    download "${src}" "${dst}" "${key}" "${secret}" '' "${verbose}" "${dryrun}"
+    download "${src}" "${dst}" "${access}" "${secret}" '' "${verbose}" "${dryrun}"
 fi
 

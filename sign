@@ -1,9 +1,21 @@
 #!/usr/bin/env bash
 
+function usage {
+    echo "Usage:"
+    echo "    sign <url> [<TimeStamp>] [--key=<key>] [--secret=<secret>] [--method=<Method>] [--service=<service>] [--region=<region>] [--headers=<fileName>] [--header=<Key>:<Value>] [--signHeaders] [--expires=<TimeInSecs>] [--verbose] "
+    echo
+    echo "Note 1: TimeStamp: must be YYYYMMDD'T'hhmmsa'Z's"
+    echo "        eg 20170901T230559Z"
+    echo "        YYYY => Year MM => Month DD => day hh => hour mm => minute ss => second"
+    exit 1
+}
+
 badflag=0
 declare -a ARGS
 
 declare -a headers
+access=${AMZ_ACCESS_KEY}
+secret=${AMZ_SECRET_KEY}
 expires=3600
 signHeaders=0
 service=""
@@ -23,6 +35,14 @@ for var in "$@"; do
         keyValue=${var#*=}
         headers+=(${keyValue})
         continue
+    fi
+    if [[ "${var%=*}" == "--key" ]]; then
+        access=${var#*=}
+        continue;
+    fi
+    if [[ "${var%=*}" == "--secret" ]]; then
+        secret=${var#*=}
+        continue;
     fi
     if [[ "${var}" = '--signHeaders' ]]; then
         signHeaders=1
@@ -57,22 +77,20 @@ for var in "$@"; do
     ARGS+=("$var")
 done
 
-if [[ ${badflag} != 0 || ( ${#ARGS[@]} < 3  || ${#ARGS[@]} > 4 ) ]]; then
-    echo "Usage:"
-    echo "    sign <url> <key> <secret> [<TimeStamp>] [--method=<Method>] [--service=<service>] [--region=<region>] [--headers=<fileName>] [--header=<Key>:<Value>] [--signHeaders] [--expires=<TimeInSecs>] [--verbose] "
-    echo
-    echo "Note 1: TimeStamp: must be YYYYMMDD'T'hhmmsa'Z's"
-    echo "        eg 20170901T230559Z"
-    echo "        YYYY => Year MM => Month DD => day hh => hour mm => minute ss => second"
-    exit 1
+if [[ "${access}" == "" || "${secret}" == "" ]]; then
+    echo "Error: No Access or Secret provided"
+    echo "These can be set in the environment variables AMZ_ACCESS_KEY/AMZ_SECRET_KEY or passed with flags"
+    usage
+fi
+
+if [[ ${badflag} != 0 || ( ${#ARGS[@]} < 1  || ${#ARGS[@]} > 2 ) ]]; then
+    usage
 fi
 
 
 url=${ARGS[0]}
-key=${ARGS[1]}
-secret=${ARGS[2]}
-dateTime=${ARGS[3]-$(date -u +"%Y%m%dT%H%M%SZ")}
+dateTime=${ARGS[1]-$(date -u +"%Y%m%dT%H%M%SZ")}
 
 dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source ${dir}/s3/signature
-createSignature "${method}" "${url}" "${key}" "${secret}" "${dateTime}" "${expires}" "${service}" "${region}" "${signHeaders}" "${verbose}" headers[@]
+createSignature "${method}" "${url}" "${access}" "${secret}" "${dateTime}" "${expires}" "${service}" "${region}" "${signHeaders}" "${verbose}" headers[@]
