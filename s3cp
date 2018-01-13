@@ -3,6 +3,12 @@
 badflag=0
 declare -a ARGS
 
+function usage {
+    echo "Usage:"
+    echo "s3cp  <file> <s3-url> <key> <secret> [--verbose] [--dryrun]"
+    echo "s3cp  <s3-url> <file> <key> <secret> [--verbose] [--dryrun]"
+    exit 1
+}
 
 verbose=''
 dryrun=0
@@ -25,9 +31,7 @@ for var in "$@"; do
 done
 
 if [[ ${#ARGS[@]} != 4 || ${badflag} != 0 ]]; then
-    echo "Usage:"
-    echo "s3cp  <file> <s3-url> <key> <secret> [--verbose] [--dryrun]"
-    exit 1
+    usage
 fi
 
 file=${ARGS[0]}
