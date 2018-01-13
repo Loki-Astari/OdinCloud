@@ -81,7 +81,7 @@ signature:      Authorization: AWS4-HMAC-SHA256 Credential=AKIAJUTZJXQ33XTA27RA/
 
 UPLOAD
 ======
-curl -o response --dump-header response.header --header "Authorization: AWS4-HMAC-SHA256 Credential=AKIAJUTZJXQ33XTA27RA/20180113/us-east-1/s3/aws4_request, SignedHeaders=content-length;host;x-amz-content-sha256;x-amz-date, Signature=3d1b88a30b7fa25c73689ab0cf454037ced1b9e846dd2ce659e3d052ca8446df" --header "Content-Length: 20207" --header "X-Amz-Content-SHA256: UNSIGNED-PAYLOAD" --header "X-Amz-Date: 20180113T022706Z" --data-binary "@/Users/yorkm/Pictures/Me.jpg" -X PUT https://icewall.s3.amazonaws.com/Photo/Test.jpg
+curl -o /tmp/dryrun.response --dump-header /tmp/dryrun.response.header --header "Authorization: AWS4-HMAC-SHA256 Credential=AKIAJUTZJXQ33XTA27RA/20180113/us-east-1/s3/aws4_request, SignedHeaders=content-length;host;x-amz-content-sha256;x-amz-date, Signature=3d1b88a30b7fa25c73689ab0cf454037ced1b9e846dd2ce659e3d052ca8446df" --header "Content-Length: 20207" --header "X-Amz-Content-SHA256: UNSIGNED-PAYLOAD" --header "X-Amz-Date: 20180113T022706Z" --data-binary "@/Users/yorkm/Pictures/Me.jpg" -X PUT https://icewall.s3.amazonaws.com/Photo/Test.jpg
 QueryExpected
 }
 

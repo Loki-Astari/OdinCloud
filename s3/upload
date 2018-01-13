@@ -54,11 +54,15 @@ signature:      ${signature}
 
 
 IntermediateValuese
-    local response="/tmp/$$.response"
+    local id=$$
+    if [[ ${dryrun} == 1 ]]; then
+        id=dryrun
+    fi
+    local response="/tmp/${id}.response"
     echo                >> ${verbose}
     echo "UPLOAD"       >> ${verbose}
     echo "======"       >> ${verbose}
-    echo "curl -o ${response} --dump-header ${respose}.header --header \"${signature}\" --header \"Content-Length: ${size}\" --header \"X-Amz-Content-SHA256: UNSIGNED-PAYLOAD\" --header \"X-Amz-Date: ${dateTime}\" --data-binary \"@${file}\" -X PUT ${url}" >> ${verbose}
+    echo "curl -o ${response} --dump-header ${response}.header --header \"${signature}\" --header \"Content-Length: ${size}\" --header \"X-Amz-Content-SHA256: UNSIGNED-PAYLOAD\" --header \"X-Amz-Date: ${dateTime}\" --data-binary \"@${file}\" -X PUT ${url}" >> ${verbose}
     fi
 
     if [[ ${dryrun} == 0 ]]; then

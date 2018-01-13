@@ -51,7 +51,11 @@ signature:      ${signature}
 
 
 IntermediateValuese
-    local response="/tmp/$$.response"
+    local id=$$
+    if [[ ${dryrun} == 1 ]]; then
+        id=dryrun
+    fi
+    local response="/tmp/${id}.response"
     echo                >> ${verbose}
     echo "DOWNLOAD"     >> ${verbose}
     echo "========"     >> ${verbose}
