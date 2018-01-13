@@ -6,20 +6,21 @@ function upload {
     local s3=$2
     local accessKey=$3
     local secretKey=$4
-    local verbose=$5
-    local dryrun=$6
+    local dateTime=$(echo $5 | xargs)
+    local verbose=$6
+    local dryrun=$7
 
     local s3Path=${s3#s3://}
     local bucket=${s3Path%%/*}
     local path=${s3Path#*/}
 
-    local dateSec=$(date +"%s")
-    local dateString=$(date -j -u -f "%s" ${dateSec} +"%a, %d %b %Y %H:%M:%S %Z")
-    local dateStamp=$(date -j -u  -f "%s" ${dateSec} +"%Y%m%dT%H%M%SZ")
+    if [[ "${dateTime}" == "" ]]; then
+        dateTime=$(date -u +"%Y%m%dT%H%M%SZ")
+    fi
+
     local size=$(stat -f "%z" ${file})
 
     local url=https://${bucket}.s3.amazonaws.com/${path}
-    #declare -a headers=("Date:${dateString}" "Content-Length:${size}")
     declare -a headers=("Content-Length:${size}")
 
     verboseTmp=''
@@ -28,7 +29,7 @@ function upload {
     fi
     echo VERBOSE: ${verboseTmp}
 
-    local signature=$(createSignature PUT "${url}" "${accessKey}" "${secretKey}" ${dateStamp} 3600 's3' 'us-east-1' 1 "${verboseTmp}" headers[@])
+    local signature=$(createSignature PUT "${url}" "${accessKey}" "${secretKey}" ${dateTime} 3600 's3' 'us-east-1' 1 "${verboseTmp}" headers[@])
 
     if [[ "${verbose}" != "" ]]; then
         cat ${verboseTmp} > ${verbose}
@@ -40,9 +41,7 @@ Prt:            ${s3Path}
 Bucket:         ${bucket}
 Path:           ${path}
 
-dateSec:        ${dateSec}
-dateString:     ${dateString}
-dateStamp:      ${dateStamp}
+dateTime:       ${dateTime}
 Size:           ${size}
 
 URL:            ${url}
@@ -53,11 +52,11 @@ IntermediateValuese
     echo                >> ${verbose}
     echo "UPLOAD"       >> ${verbose}
     echo "======"       >> ${verbose}
-    echo "curl -o response --dump-header response.header --header \"${signature}\" --header \"Date: ${dateString}\" --header \"Content-Length: ${size}\" --header \"X-Amz-Content-SHA256: UNSIGNED-PAYLOAD\" --header \"X-Amz-Date: ${dateStamp}\" --data-binary \"@${file}\" -X PUT ${url}" >> ${verbose}
+    echo "curl -o response --dump-header response.header --header \"${signature}\" --header \"Content-Length: ${size}\" --header \"X-Amz-Content-SHA256: UNSIGNED-PAYLOAD\" --header \"X-Amz-Date: ${dateTime}\" --data-binary \"@${file}\" -X PUT ${url}" >> ${verbose}
     fi
 
     if [[ ${dryrun} == 0 ]]; then
-        curl -o response --dump-header response.header --header "${signature}" --header "Date: ${dateString}" --header "Content-Length: ${size}" --header "X-Amz-Content-SHA256: UNSIGNED-PAYLOAD" --header "X-Amz-Date: ${dateStamp}" --data-binary "@${file}" -X PUT ${url}
+        curl -o response --dump-header response.header --header "${signature}" --header "Content-Length: ${size}" --header "X-Amz-Content-SHA256: UNSIGNED-PAYLOAD" --header "X-Amz-Date: ${dateTime}" --data-binary "@${file}" -X PUT ${url}
     fi
 }
 

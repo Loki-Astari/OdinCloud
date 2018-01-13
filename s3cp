@@ -38,5 +38,5 @@ secret=${ARGS[3]}
 source signature
 source upload
 
-upload "${file}" "${s3}" "${key}" "${secret}" "${verbose}" "${dryrun}"
+upload "${file}" "${s3}" "${key}" "${secret}" '' "${verbose}" "${dryrun}"
 
