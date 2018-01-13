@@ -31,9 +31,8 @@ function upload {
 
     verboseTmp=''
     if [[ "${verbose}" != "" ]]; then
-        verboseTmp=/tmp/put.tmp
+        verboseTmp="/tmp/$$.put.tmp"
     fi
-    echo VERBOSE: ${verboseTmp}
 
     local signature=$(createSignature PUT "${url}" "${accessKey}" "${secretKey}" ${dateTime} 3600 's3' 'us-east-1' 1 "${verboseTmp}" headers[@])
 
@@ -55,14 +54,23 @@ signature:      ${signature}
 
 
 IntermediateValuese
+    local response="/tmp/$$.response"
     echo                >> ${verbose}
     echo "UPLOAD"       >> ${verbose}
     echo "======"       >> ${verbose}
-    echo "curl -o response --dump-header response.header --header \"${signature}\" --header \"Content-Length: ${size}\" --header \"X-Amz-Content-SHA256: UNSIGNED-PAYLOAD\" --header \"X-Amz-Date: ${dateTime}\" --data-binary \"@${file}\" -X PUT ${url}" >> ${verbose}
+    echo "curl -o ${response} --dump-header ${respose}.header --header \"${signature}\" --header \"Content-Length: ${size}\" --header \"X-Amz-Content-SHA256: UNSIGNED-PAYLOAD\" --header \"X-Amz-Date: ${dateTime}\" --data-binary \"@${file}\" -X PUT ${url}" >> ${verbose}
     fi
 
     if [[ ${dryrun} == 0 ]]; then
-        curl -o response --dump-header response.header --header "${signature}" --header "Content-Length: ${size}" --header "X-Amz-Content-SHA256: UNSIGNED-PAYLOAD" --header "X-Amz-Date: ${dateTime}" --data-binary "@${file}" -X PUT ${url}
+        curl -o ${response} --dump-header ${response}.header --header "${signature}" --header "Content-Length: ${size}" --header "X-Amz-Content-SHA256: UNSIGNED-PAYLOAD" --header "X-Amz-Date: ${dateTime}" --data-binary "@${file}" -X PUT ${url}
+        if [[ "${verbose}" != "" ]]; then
+            echo "HEADER"           >> ${verbose}
+            echo "======"           >> ${verbose}
+            cat ${respose}.header   >> ${verbose}
+            echo "BODY"             >> ${verbose}
+            echo "===="             >> ${verbose}
+            cat ${respose}          >> ${verbose}
+        fi
     fi
 }
 
