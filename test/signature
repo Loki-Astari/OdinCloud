@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
-source signature
+dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source ${dir}/../s3/signature
 
 function createSignatureHeaderTest {
 

@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 
-source signature
-source upload
+dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source ${dir}/../s3/signature
+source ${dir}/../s3/upload
 
 function uploadTest {
 
