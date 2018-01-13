@@ -73,6 +73,6 @@ key=${ARGS[1]}
 secret=${ARGS[2]}
 dateTime=${ARGS[3]-$(date -u +"%Y%m%dT%H%M%SZ")}
 
-local dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source ${dir}/s3/signature
 createSignature "${method}" "${url}" "${key}" "${secret}" "${dateTime}" "${expires}" "${service}" "${region}" "${signHeaders}" "${verbose}" headers[@]

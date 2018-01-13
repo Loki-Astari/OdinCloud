@@ -39,7 +39,7 @@ s3=${ARGS[1]}
 key=${ARGS[2]}
 secret=${ARGS[3]}
 
-local dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source ${dir}/signature
 source ${dir}/upload
 
