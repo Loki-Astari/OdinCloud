@@ -1,0 +1,80 @@
+#!/bin/bash
+
+function upload {
+    local file=$1
+    eval file=${file}
+    local s3=$2
+    local accessKey=$3
+    local secretKey=$4
+    local dateTime=$(echo $5 | xargs)
+    local verbose=$6
+    local dryrun=$7
+
+    local s3Path=${s3#s3://}
+    local bucket=${s3Path%%/*}
+    local path=${s3Path#*/}
+
+    if [[ "${s3}" == "${s3Path}" ]]; then
+        echo "Error: destination ${s3} is not correct"
+        echo "An s3 url looks like this:  s3://<bucket>/<object>"
+        exit 1
+    fi
+
+    if [[ "${dateTime}" == "" ]]; then
+        dateTime=$(date -u +"%Y%m%dT%H%M%SZ")
+    fi
+
+    local size=$(stat -f "%z" ${file})
+
+    local url=https://${bucket}.s3.amazonaws.com/${path}
+    declare -a headers=("Content-Length:${size}")
+
+    verboseTmp=''
+    if [[ "${verbose}" != "" ]]; then
+        verboseTmp="/tmp/$$.put.tmp"
+    fi
+
+    local signature=$(createSignature PUT "${url}" "${accessKey}" "${secretKey}" ${dateTime} 3600 's3' 'us-east-1' 1 "${verboseTmp}" headers[@])
+
+    if [[ "${verbose}" != "" ]]; then
+        cat ${verboseTmp} > ${verbose}
+        cat - <<IntermediateValuese > ${verbose}
+
+File:           ${file}
+S3:             ${s3}
+Prt:            ${s3Path}
+Bucket:         ${bucket}
+Path:           ${path}
+
+dateTime:       ${dateTime}
+Size:           ${size}
+
+URL:            ${url}
+signature:      ${signature}
+
+
+IntermediateValuese
+    local id=$$
+    if [[ ${dryrun} == 1 ]]; then
+        id=dryrun
+    fi
+    local response="/tmp/${id}.response"
+    echo                >> ${verbose}
+    echo "UPLOAD"       >> ${verbose}
+    echo "======"       >> ${verbose}
+    echo "curl -o ${response} --dump-header ${response}.header --header \"${signature}\" --header \"Content-Length: ${size}\" --header \"X-Amz-Content-SHA256: UNSIGNED-PAYLOAD\" --header \"X-Amz-Date: ${dateTime}\" --data-binary \"@${file}\" -X PUT ${url}" >> ${verbose}
+    fi
+
+    if [[ ${dryrun} == 0 ]]; then
+        curl -o ${response} --dump-header ${response}.header --header "${signature}" --header "Content-Length: ${size}" --header "X-Amz-Content-SHA256: UNSIGNED-PAYLOAD" --header "X-Amz-Date: ${dateTime}" --data-binary "@${file}" -X PUT ${url}
+        if [[ "${verbose}" != "" ]]; then
+            echo "HEADER"           >> ${verbose}
+            echo "======"           >> ${verbose}
+            cat ${respose}.header   >> ${verbose}
+            echo "BODY"             >> ${verbose}
+            echo "===="             >> ${verbose}
+            cat ${respose}          >> ${verbose}
+        fi
+    fi
+}
+

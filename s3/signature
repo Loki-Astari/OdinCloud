@@ -9,6 +9,7 @@ fi
 
 
 #
+#   method
 #   url
 #   key
 #   secret
@@ -17,23 +18,25 @@ fi
 #   service         if blank extracts from the URL
 #   region          if blank extracts from the URL
 #   signHeaders     if 1 creates headers for signing otherwise creates query parameters
-#   verbose         if 1 prints out lots of information. Otherwise just what is needed
+#   verbose         if blank (empty or just white space) then no extra output.
+#                   otherwise it is a filename to output (note - represents stdout)
 #   headers[@]
 
 function createSignature {
 
     local saveIFS=${IFS}
 
-    local url=$1
-    local key=$2
-    local secret=$3
-    local dateTime=$(echo $4 | xargs)
-    local expires=$5
-    local service=$6
-    local region=$7
-    local signHeaders=$8
-    local verbose=$9
-    local headers=("${!10}")
+    local method=$1
+    local url=$2
+    local key=$3
+    local secret=$4
+    local dateTime=$(echo $5 | xargs)
+    local expires=$6
+    local service=$7
+    local region=$8
+    local signHeaders=$9
+    local verbose=$(echo ${10} | xargs)
+    local headers=("${!11}")
 
     if [[ "${dateTime}" == "" ]]; then
         dateTime=$(date -u +"%Y%m%dT%H%M%SZ")
@@ -113,7 +116,7 @@ function createSignature {
     # Build the canonical request
     IFS=$'\n'
     cr=$(uniq <<CanonicalRequest
-GET
+${method}
 ${path}
 ${queryParam#?}
 ${sortedHeaders[*]}
@@ -146,8 +149,8 @@ StringToSign
     local kSign=$(echo -n "aws4_request" | openssl dgst -sha256 -binary -mac HMAC -macopt "hexkey:${kServ}" | xxd -p -c 256)
     local signature=$(echo -n "${ss}"    | openssl dgst -sha256 -binary -mac HMAC -macopt "hexkey:${kSign}" | xxd -p -c 256)
 
-    if [[ "${verbose}" == "1" ]]; then
-        cat - <<IntermediateValues
+    if [[ "${verbose}" != "" ]]; then
+        cat - <<IntermediateValues > ${verbose}
 Intermediate Values
 url:                      ${url}
 key:                      ${key}
@@ -183,26 +186,26 @@ Headers:
 ========
 IntermediateValues
 
-        printf "%s\n" ${headers[@]}
-        echo
+        printf "%s\n" ${headers[@]}                 >> ${verbose}
+        echo                                        >> ${verbose}
 
-        echo "CURL COMMAND:"
-        echo "============="
+        echo "CURL COMMAND:"                        >> ${verbose}
+        echo "============="                        >> ${verbose}
 
-        echo -n "curl -o ${file} "
+        echo -n "curl -o ${file} "                  >> ${verbose}
         for loop in "${headers[@]}"; do
             if [[ ${loop%:*} != "Host" ]]; then
-                echo -n "--header \"${loop}\" "
+                echo -n "--header \"${loop}\" "     >> ${verbose}
             fi
         done
         if [[ "${signHeaders}" == "1" ]]; then
-            echo "--header \"Authorization: AWS4-HMAC-SHA256 Credential=${key}/${date}/${region}/${service}/aws4_request, SignedHeaders=${headerList#;}, Signature=${signature}\" \"https://${host}${path}${queryParam}${fragment}\""
+            echo "--header \"Authorization: AWS4-HMAC-SHA256 Credential=${key}/${date}/${region}/${service}/aws4_request, SignedHeaders=${headerList#;}, Signature=${signature}\" \"https://${host}${path}${queryParam}${fragment}\""   >> ${verbose}
         else
-            echo "\"https://${host}${path}${queryParam}${querySep}X-Amz-Signature=${signature}${fragment}\""
+            echo "\"https://${host}${path}${queryParam}${querySep}X-Amz-Signature=${signature}${fragment}\"" >> ${verbose}
         fi
-        echo
-        echo "OUTPUT"
-        echo "======"
+        echo                                        >> ${verbose}
+        echo "OUTPUT"                               >> ${verbose}
+        echo "======"                               >> ${verbose}
     fi
 
     if [[ "${signHeaders}" == "1" ]]; then

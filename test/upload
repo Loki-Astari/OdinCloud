@@ -1,0 +1,91 @@
+#!/usr/bin/env bash
+
+dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source ${dir}/../s3/signature
+source ${dir}/../s3/upload
+
+function uploadTest {
+
+    upload /Users/yorkm/Pictures/Me.jpg s3://icewall/Photo/Test.jpg 'AKIAJUTZJXQ33XTA27RA' 'HaGXorkshPOr2M+yjIR3iKbVDCkrM0cHhZHJGx4C' 20180113T022706Z /dev/stdout 1 > /tmp/upload.test
+    diff - /tmp/upload.test <<QueryExpected
+Intermediate Values
+url:                      https://icewall.s3.amazonaws.com/Photo/Test.jpg
+key:                      AKIAJUTZJXQ33XTA27RA
+secret:                   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
+dateTime:                 20180113T022706Z
+date:                     20180113
+host:                     icewall.s3.amazonaws.com
+path:                     /Photo/Test.jpg
+service:                  s3
+region:                   us-east-1
+expires:                  3600
+HashedCanonicalRequest:   b8e09011c1dcd04fb9b1cd5e2ec339e5ac81e20e2573015da86b9428ddaa841e
+kDate:                    01246d6720ca755e6d37cecda6b20ea8833a8a63011d691c2c592c8ddfc8cd1c
+kRegn:                    e70fa5b09f1c552e6f629eab1f71c9ee529e273019ffe1a4359c7d3b3dbdca01
+kServ:                    4538b21221f388064c9ec8a703fa0094a7db63270b5131a68b32e735755753f9
+kSign:                    d7c0fe2cb52d5c0fc6c59a6efe4376bdd3cbcf877be118f3c5ed26c866e1e4fb
+signature:                3d1b88a30b7fa25c73689ab0cf454037ced1b9e846dd2ce659e3d052ca8446df
+
+
+Cononical Request:
+==================
+PUT
+/Photo/Test.jpg
+
+content-length:20207
+host:icewall.s3.amazonaws.com
+x-amz-content-sha256:UNSIGNED-PAYLOAD
+x-amz-date:20180113T022706Z
+
+content-length;host;x-amz-content-sha256;x-amz-date
+UNSIGNED-PAYLOAD
+
+Signing String:
+===============
+AWS4-HMAC-SHA256
+20180113T022706Z
+20180113/us-east-1/s3/aws4_request
+b8e09011c1dcd04fb9b1cd5e2ec339e5ac81e20e2573015da86b9428ddaa841e
+
+Signed URL:
+===========
+https://icewall.s3.amazonaws.com/Photo/Test.jpg?X-Amz-Signature=3d1b88a30b7fa25c73689ab0cf454037ced1b9e846dd2ce659e3d052ca8446df
+
+Headers:
+========
+Content-Length:20207
+Host:icewall.s3.amazonaws.com
+X-Amz-Date:20180113T022706Z
+X-Amz-Content-SHA256:UNSIGNED-PAYLOAD
+
+CURL COMMAND:
+=============
+curl -o Test.jpg --header "Content-Length:20207" --header "X-Amz-Date:20180113T022706Z" --header "X-Amz-Content-SHA256:UNSIGNED-PAYLOAD" --header "Authorization: AWS4-HMAC-SHA256 Credential=AKIAJUTZJXQ33XTA27RA/20180113/us-east-1/s3/aws4_request, SignedHeaders=content-length;host;x-amz-content-sha256;x-amz-date, Signature=3d1b88a30b7fa25c73689ab0cf454037ced1b9e846dd2ce659e3d052ca8446df" "https://icewall.s3.amazonaws.com/Photo/Test.jpg"
+
+OUTPUT
+======
+
+File:           /Users/yorkm/Pictures/Me.jpg
+S3:             s3://icewall/Photo/Test.jpg
+Prt:            icewall/Photo/Test.jpg
+Bucket:         icewall
+Path:           Photo/Test.jpg
+
+dateTime:       20180113T022706Z
+Size:           20207
+
+URL:            https://icewall.s3.amazonaws.com/Photo/Test.jpg
+signature:      Authorization: AWS4-HMAC-SHA256 Credential=AKIAJUTZJXQ33XTA27RA/20180113/us-east-1/s3/aws4_request, SignedHeaders=content-length;host;x-amz-content-sha256;x-amz-date, Signature=3d1b88a30b7fa25c73689ab0cf454037ced1b9e846dd2ce659e3d052ca8446df
+
+
+
+UPLOAD
+======
+curl -o /tmp/dryrun.response --dump-header /tmp/dryrun.response.header --header "Authorization: AWS4-HMAC-SHA256 Credential=AKIAJUTZJXQ33XTA27RA/20180113/us-east-1/s3/aws4_request, SignedHeaders=content-length;host;x-amz-content-sha256;x-amz-date, Signature=3d1b88a30b7fa25c73689ab0cf454037ced1b9e846dd2ce659e3d052ca8446df" --header "Content-Length: 20207" --header "X-Amz-Content-SHA256: UNSIGNED-PAYLOAD" --header "X-Amz-Date: 20180113T022706Z" --data-binary "@/Users/yorkm/Pictures/Me.jpg" -X PUT https://icewall.s3.amazonaws.com/Photo/Test.jpg
+QueryExpected
+}
+
+
+echo "Running: UploadTest"
+uploadTest
+

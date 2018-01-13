@@ -1,0 +1,87 @@
+#!/bin/bash
+
+badflag=0
+declare -a ARGS
+
+function usage {
+    echo "Usage:"
+    echo "s3cp  <file> <s3-url> [--key=<key>] [--secret=<secret>] [--verbose] [--dryrun]"
+    echo "s3cp  <s3-url> <file> [--key=<key>] [--secret=<secret>] [--verbose] [--dryrun]"
+    exit 1
+}
+
+verbose=''
+dryrun=0
+access=${AMZ_ACCESS_KEY}
+secret=${AMZ_SECRET_KEY}
+for var in "$@"; do
+    if [[ "${var}" == '--verbose' ]]; then
+        verbose='/dev/stdout'
+        continue
+    fi
+    if [[ "${var}" == '--dryrun' ]]; then
+        dryrun=1
+        continue;
+    fi
+    if [[ "${var%=*}" == "--key" ]]; then
+        access=${var#*=}
+        continue;
+    fi
+    if [[ "${var%=*}" == "--secret" ]]; then
+        secret=${var#*=}
+        continue;
+    fi
+    flag=${var#-}
+    if [[ "${flag}" != ${var} ]]; then
+        badflag=1
+        echo "Bad flag: ${var}"
+        continue
+    fi
+    ARGS+=("$var")
+done
+
+if [[ "${access}" == "" || "${secret}" == "" ]]; then
+    echo "Error: No Access or Secret provided."
+    echo "These can be set in the environment variables AMZ_ACCESS_KEY/AMZ_SECRET_KEY or passed with flags"
+    usage
+fi
+
+if [[ ${#ARGS[@]} != 2 || ${badflag} != 0 ]]; then
+    usage
+fi
+
+src=${ARGS[0]}
+dst=${ARGS[1]}
+
+doUpload=0
+doDownload=0
+srcS3=${src#s3://}
+if [[ "${src}" == "${srcS3}" ]]; then
+    doUpload=1
+fi
+dstS3=${dst#s3://}
+if [[ "${dst}" == "${dstS3}" ]]; then
+    doDownload=1
+fi
+
+if [[ ${doUpload} == 0 && ${doDownload} == 0 ]]; then
+    echo "Neither source or destination is on S3. Just use normal cp"
+    usage
+fi
+if [[ ${doUpload} == 1 && ${doDownload} == 1 ]]; then
+    echo "Both source or destination is on S3. Don't support move yet."
+    usage
+fi
+
+dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source ${dir}/s3/signature
+
+
+if [[ ${doUpload} == 1 ]]; then
+    source ${dir}/s3/upload
+    upload "${src}" "${dst}" "${access}" "${secret}" '' "${verbose}" "${dryrun}"
+else
+    source ${dir}/s3/download
+    download "${src}" "${dst}" "${access}" "${secret}" '' "${verbose}" "${dryrun}"
+fi
+

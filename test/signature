@@ -1,18 +1,12 @@
 #!/usr/bin/env bash
 
-# ./sign 'https://s3.amazonaws.com/icewall/IceWall.jpg?tom=1&bob=2#code' 'AKIAJUTZJXQ33XTA27RA' 'HaGXorkshPOr2M+yjIR3iKbVDCkrM0cHhZHJGx4C'  20180112T021056Z --service=s3 --region=us-east-1  --header=top:5 --header=bot:mark  --signHeaders --verbose >> test/signature
-
-source signature
-
-#
-# The unit tests assume the access key and secret key are in the appropriate environment variables.
-# The test try and extract the File IceWall.jpg from the bucket icewall
-# The test pass in a bunch of query and test parameters to make sure we can pass both
+dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source ${dir}/../s3/signature
 
 function createSignatureHeaderTest {
 
     declare -a h=("top:5" "bot:mark")
-    createSignature "https://s3.amazonaws.com/icewall/IceWall.jpg?tom=1&bob=2#code" "AKIAJUTZJXQ33XTA27RA" "HaGXorkshPOr2M+yjIR3iKbVDCkrM0cHhZHJGx4C" 20180112T021056Z 3600 s3 us-east-1 1 1 h[@] > /tmp/signature.test
+    createSignature GET "https://s3.amazonaws.com/icewall/IceWall.jpg?tom=1&bob=2#code" "AKIAJUTZJXQ33XTA27RA" "HaGXorkshPOr2M+yjIR3iKbVDCkrM0cHhZHJGx4C" 20180112T021056Z 3600 s3 us-east-1 1 /dev/stdout h[@] > /tmp/signature.test
     diff - /tmp/signature.test <<QueryExpected
 Intermediate Values
 url:                      https://s3.amazonaws.com/icewall/IceWall.jpg?tom=1&bob=2#code
@@ -81,7 +75,7 @@ QueryExpected
 function createSignatureQueryTest {
 
     declare -a h=("top:5" "bot:mark")
-    createSignature "https://s3.amazonaws.com/icewall/IceWall.jpg?tom=1&bob=2#code" "AKIAJUTZJXQ33XTA27RA" "HaGXorkshPOr2M+yjIR3iKbVDCkrM0cHhZHJGx4C" 20180112T021056Z 3600 s3 us-east-1 0 1 h[@] > /tmp/signature.test
+    createSignature GET "https://s3.amazonaws.com/icewall/IceWall.jpg?tom=1&bob=2#code" "AKIAJUTZJXQ33XTA27RA" "HaGXorkshPOr2M+yjIR3iKbVDCkrM0cHhZHJGx4C" 20180112T021056Z 3600 s3 us-east-1 0 /dev/stdout h[@] > /tmp/signature.test
     diff - /tmp/signature.test <<QueryExpected
 Intermediate Values
 url:                      https://s3.amazonaws.com/icewall/IceWall.jpg?tom=1&bob=2#code
