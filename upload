@@ -14,6 +14,12 @@ function upload {
     local bucket=${s3Path%%/*}
     local path=${s3Path#*/}
 
+    if [[ "${s3}" == "${s3Path}" ]]; then
+        echo "Error: destination ${s3} is not correct"
+        echo "An s3 url looks like this:  s3://<bucket>/<object>"
+        exit 1
+    fi
+
     if [[ "${dateTime}" == "" ]]; then
         dateTime=$(date -u +"%Y%m%dT%H%M%SZ")
     fi
