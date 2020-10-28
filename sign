@@ -2,9 +2,9 @@
 
 function usage {
     echo "Usage:"
-    echo "    sign <url> [<TimeStamp>] [--key=<key>] [--secret=<secret>] [--method=<Method>] [--service=<service>] [--region=<region>] [--headers=<fileName>] [--header=<Key>:<Value>] [--signHeaders] [--expires=<TimeInSecs>] [--verbose] "
+    echo "    sign <url> [<TimeStamp>] [--fileName=<file>] [--key=<key>] [--secret=<secret>] [--method=<Method>] [--service=<service>] [--region=<region>] [--headers=<fileName>] [--header=<Key>:<Value>] [--signHeaders] [--expires=<TimeInSecs>] [--verbose] "
     echo
-    echo "Note 1: TimeStamp: must be YYYYMMDD'T'hhmmsa'Z's"
+    echo "Note 1: TimeStamp: must be YYYYMMDD'T'hhmmss'Z'"
     echo "        eg 20170901T230559Z"
     echo "        YYYY => Year MM => Month DD => day hh => hour mm => minute ss => second"
     exit 1
@@ -14,14 +14,15 @@ badflag=0
 declare -a ARGS
 
 declare -a headers
-access=${AMZ_ACCESS_KEY}
-secret=${AMZ_SECRET_KEY}
+access=$(awk '/aws_access_key_id/{print $3}'     ~/.aws/credentials)
+secret=$(awk '/aws_secret_access_key/{print $3}' ~/.aws/credentials)
 expires=3600
 signHeaders=0
 service=""
 region=""
 verbose=
 method=GET
+fileName=
 
 for var in "$@"; do
     if [[ "${var%=*}" = '--headers' ]]; then
@@ -68,6 +69,10 @@ for var in "$@"; do
         method=${var#*=}
         continue
     fi
+    if [[ "${var%=*}" == '--fileName' ]]; then
+        fileName=${var#*=}
+        continue
+    fi
     flag=${var#-}
     if [[ "${flag}" != ${var} ]]; then
         badflag=1
@@ -93,4 +98,4 @@ dateTime=${ARGS[1]-$(date -u +"%Y%m%dT%H%M%SZ")}
 
 dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source ${dir}/s3/signature
-createSignature "${method}" "${url}" "${access}" "${secret}" "${dateTime}" "${expires}" "${service}" "${region}" "${signHeaders}" "${verbose}" headers[@]
+createSignature "${method}" "${url}" "${access}" "${secret}" "${dateTime}" "${expires}" "${service}" "${region}" "${signHeaders}" "File-${fileName}" "${verbose}" headers[@]

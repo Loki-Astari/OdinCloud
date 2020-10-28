@@ -32,11 +32,12 @@ function createSignature {
     local secret=$4
     local dateTime=$(echo $5 | xargs)
     local expires=$6
-    local service=$7
+    local serviceIn=$7
     local region=$8
     local signHeaders=$9
-    local verbose=$(echo ${10} | xargs)
-    local headers=("${!11}")
+    local fileName=${10#File-}
+    local verbose=$(echo ${11} | xargs)
+    local headers=("${!12}")
 
     if [[ "${dateTime}" == "" ]]; then
         dateTime=$(date -u +"%Y%m%dT%H%M%SZ")
@@ -48,14 +49,16 @@ function createSignature {
 
     #
     # Amazon Hosted URLS are built up in sections.
-    #   http://<service>-<region>.<Amazon End Point><Path>
+    #   http://[<bucket>.]<service>-<region>.<Amazon End Point><Path>
+    #   http://MyBucket.s3-us-west-2.amazonaws.com/ObjectId
     #
     #   Strip out these parts from the url
     local urlNoSchema=${url#https://}
     local host=${urlNoSchema%%/*}
-    local serviceRegion=${host%%\.*}
-    local service=${service-${serviceRegion%%-*}}
-    local region=${region-${serviceRegion#*-}}
+    local bucketSR=${host%%.amazonaws.com}
+    local serviceRegion=${bucketSR#*.}
+    local service=${serviceIn:-${serviceRegion%%\-*}}
+    local region=${region:-${serviceRegion#*\-}}
     local pathAndQueryFrag=/${url#https://*/}
     local pathAndQuery=${pathAndQueryFrag%%#*}
     local path=${pathAndQuery%%\?*}
@@ -69,14 +72,20 @@ function createSignature {
     else
         fragment="#${fragment}"
     fi
-    local file=${path##*/}
+    local file=${fileName}
+    if [[ "${file}" == "" ]]; then
+        file=${path##*/}
+        if [[ "${file}" == "" ]]; then
+            file="out"
+        fi
+    fi
 
     local -a querys
     for loop in $(echo ${queryItems} | sed -e 's/&/ /'); do
         querys+=($loop)
     done
 
-    headers+=("Host:${host}")
+    headers+=("host:${host}")
     if [[ "${signHeaders}" == "1" ]]; then
         headers+=("X-Amz-Date:${dateTime}")
         headers+=("X-Amz-Content-SHA256:UNSIGNED-PAYLOAD")
@@ -159,6 +168,7 @@ dateTime:                 ${dateTime}
 date:                     ${date}
 host:                     ${host}
 path:                     ${path}
+bucketSR:                 ${bucketSR}
 service:                  ${service}
 region:                   ${region}
 expires:                  ${expires}
@@ -192,9 +202,13 @@ IntermediateValues
         echo "CURL COMMAND:"                        >> ${verbose}
         echo "============="                        >> ${verbose}
 
+        if [[ ${method} == "GET" ]]; then
         echo -n "curl -o ${file} "                  >> ${verbose}
+        else
+        echo -n "curl --dump-header - --output - -X ${method} -T ${file} " >> ${verbose}
+        fi
         for loop in "${headers[@]}"; do
-            if [[ ${loop%:*} != "Host" ]]; then
+            if [[ ${loop%:*} != "host" ]]; then
                 echo -n "--header \"${loop}\" "     >> ${verbose}
             fi
         done
