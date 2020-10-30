@@ -16,6 +16,13 @@ declare -a ARGS
 declare -a headers
 access=$(awk '/aws_access_key_id/{print $3}'     ~/.aws/credentials)
 secret=$(awk '/aws_secret_access_key/{print $3}' ~/.aws/credentials)
+if [[ "${AWS_ACCESS_KEY_ID}" != "" ]]; then
+    access=${AWS_ACCESS_KEY_ID}
+    secret=${AWS_SECRET_ACCESS_KEY}
+    if [[ "${AWS_SESSION_TOKEN}" != "" ]]; then
+        headers+=("x-amz-security-token:${AWS_SESSION_TOKEN}")
+    fi
+fi
 expires=3600
 signHeaders=0
 service=""
@@ -25,23 +32,23 @@ method=GET
 fileName=
 
 for var in "$@"; do
-    if [[ "${var%=*}" = '--headers' ]]; then
+    if [[ "${var%%=*}" = '--headers' ]]; then
         file=${var#*=}
         while IFS= read -r line; do
             headers+=("$line")
         done < ${file}
         continue
     fi
-    if [[ "${var%=*}" = '--header' ]]; then
+    if [[ "${var%%=*}" = '--header' ]]; then
         keyValue=${var#*=}
         headers+=(${keyValue})
         continue
     fi
-    if [[ "${var%=*}" == "--key" ]]; then
+    if [[ "${var%%=*}" == "--key" ]]; then
         access=${var#*=}
         continue;
     fi
-    if [[ "${var%=*}" == "--secret" ]]; then
+    if [[ "${var%%=*}" == "--secret" ]]; then
         secret=${var#*=}
         continue;
     fi
@@ -49,15 +56,15 @@ for var in "$@"; do
         signHeaders=1
         continue
     fi
-    if [[ "${var%=*}" = '--expires' ]]; then
+    if [[ "${var%%=*}" = '--expires' ]]; then
         expires=${var#*=}
         continue
     fi
-    if [[ "${var%=*}" == '--service' ]]; then
+    if [[ "${var%%=*}" == '--service' ]]; then
         service=${var#*=}
         continue
     fi
-    if [[ "${var%=*}" == '--region' ]]; then
+    if [[ "${var%%=*}" == '--region' ]]; then
         region=${var#*=}
         continue
     fi
@@ -65,11 +72,11 @@ for var in "$@"; do
         verbose='/dev/stdout'
         continue
     fi
-    if [[ "${var%=*}" == '--method' ]]; then
+    if [[ "${var%%=*}" == '--method' ]]; then
         method=${var#*=}
         continue
     fi
-    if [[ "${var%=*}" == '--fileName' ]]; then
+    if [[ "${var%%=*}" == '--fileName' ]]; then
         fileName=${var#*=}
         continue
     fi
