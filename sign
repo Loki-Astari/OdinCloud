@@ -22,6 +22,11 @@ if [[ "${AWS_ACCESS_KEY_ID}" != "" ]]; then
     if [[ "${AWS_SESSION_TOKEN}" != "" ]]; then
         headers+=("x-amz-security-token:${AWS_SESSION_TOKEN}")
     fi
+else
+    token=$(awk '/aws_session_token/{print $3}'  ~/.aws/credentials)
+    if [[ "${token}" != "" ]]; then
+        headers+=("x-amz-security-token:${token}")
+    fi
 fi
 expires=3600
 signHeaders=0
